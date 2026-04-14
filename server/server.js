@@ -153,15 +153,105 @@ function initData() {
         db.run(`INSERT OR IGNORE INTO schools (id, name, short_name, icon, description, founded_year, color) VALUES (?, ?, ?, ?, ?, ?, ?)`, s);
     });
 
-    // 用户数据
+    // 真实年轻头像URL（来自Unsplash）
+    const avatars = [
+        // 女生头像
+        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face',
+        // 男生头像
+        'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1480429370612-2b0cf398ac8d?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1463453091185-61582044d556?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&h=150&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=150&h=150&fit=crop&crop=face'
+    ];
+
+    // 常见姓名
+    const familyNames = ['王', '李', '张', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗'];
+    const maleNames = ['伟', '强', '磊', '军', '杰', '涛', '明', '华', '亮', '鹏', '飞', '宇', '浩', '天', '然', '博', '文', '志', '建国', '志强', '文博', '浩然', '子轩', '雨泽', '梓豪'];
+    const femaleNames = ['芳', '娜', '丽', '敏', '静', '秀英', '玉兰', '雪', '梅', '婷', '倩', '媛', '蕾', '欣', '怡', '梦', '瑶', '佳', '雨涵', '思颖', '诗涵', '欣怡', '梦琪', '雅婷', '若曦'];
+
+    // 职业和公司
+    const jobs = [
+        {job: '软件工程师', company: '腾讯科技'},
+        {job: '产品经理', company: '阿里巴巴'},
+        {job: '数据分析师', company: '字节跳动'},
+        {job: '设计师', company: '网易'},
+        {job: '教师', company: '南部中学'},
+        {job: '医生', company: '南充市中心医院'},
+        {job: '公务员', company: '南部县政府'},
+        {job: '创业者', company: '成都某科技公司'},
+        {job: '建筑师', company: '中建集团'},
+        {job: '律师', company: '北京大成律师事务所'},
+        {job: '财务总监', company: '招商银行'},
+        {job: '投资经理', company: '中信证券'},
+        {job: '记者', company: '四川日报'},
+        {job: '摄影师', company: '自由职业'},
+        {job: '研究生', company: '清华大学'},
+        {job: '博士生', company: '北京大学'},
+        {job: '销售总监', company: '华为'},
+        {job: '运维工程师', company: '京东'},
+        {job: '测试工程师', company: '小米'},
+        {job: 'UI设计师', company: '美团'}
+    ];
+
+    const cities = ['北京', '上海', '广州', '深圳', '成都', '重庆', '杭州', '南京', '武汉', '西安', '南充', '绵阳'];
+    const levels = ['初中', '高中'];
+    const classNames = ['高三(1)班', '高三(2)班', '高三(3)班', '高三(4)班', '初三(1)班', '初三(2)班', '初三(3)班'];
+    const years = [2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020];
+    const bios = [
+        '热爱技术，关注家乡发展。',
+        '在外打拼，怀念母校时光。',
+        '希望为家乡建设贡献力量。',
+        '永远记得那段青葱岁月。',
+        '感恩母校培养，期待校友聚会。',
+        '努力学习，回报社会。',
+        '关注家乡变化，祝福母校越来越好。',
+        '同窗情谊，终生难忘。',
+        '青春无悔，友谊长存。',
+        '愿母校桃李满天下。'
+    ];
+
+    // 用户数据 - 包含各学校、各班级管理员
     const users = [
+        // 总管理员
         ['u0', 'admin', hash, '总管理员', 'superadmin', '', '', '', '', '系统管理员', '南充', '南部县校友会联盟总管理员', ''],
+        // 学校管理员
         ['u_nb1', 'nb1_admin', hash, '南部中学管理员', 'school_admin', '南部中学', '', '', '', '学校管理员', '南充', '', ''],
         ['u_nb2', 'nb2_admin', hash, '南部二中管理员', 'school_admin', '南部二中', '', '', '', '学校管理员', '南充', '', ''],
         ['u_nb3', 'nb3_admin', hash, '南部三中管理员', 'school_admin', '南部三中', '', '', '', '学校管理员', '南充', '', ''],
         ['u_dq', 'dq_admin', hash, '大桥中学管理员', 'school_admin', '大桥中学', '', '', '', '学校管理员', '南充', '', ''],
         ['u_db', 'db_admin', hash, '东坝中学管理员', 'school_admin', '东坝中学', '', '', '', '学校管理员', '南充', '', ''],
         ['u_jx', 'jx_admin', hash, '建兴中学管理员', 'school_admin', '建兴中学', '', '', '', '学校管理员', '南充', '', ''],
+        // 班级管理员 - 南部中学
+        ['u_nb1_2005_1', 'nb1_2005_1', hash, '南部中学2005级1班管理员', 'class_admin', '南部中学', '高中', 2005, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_nb1_2005_2', 'nb1_2005_2', hash, '南部中学2005级2班管理员', 'class_admin', '南部中学', '高中', 2005, '高三(2)班', '班级管理员', '南充', '', ''],
+        ['u_nb1_2010_1', 'nb1_2010_1', hash, '南部中学2010级1班管理员', 'class_admin', '南部中学', '高中', 2010, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_nb1_2010_2', 'nb1_2010_2', hash, '南部中学2010级2班管理员', 'class_admin', '南部中学', '高中', 2010, '高三(2)班', '班级管理员', '南充', '', ''],
+        // 班级管理员 - 南部二中
+        ['u_nb2_2008_1', 'nb2_2008_1', hash, '南部二中2008级1班管理员', 'class_admin', '南部二中', '高中', 2008, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_nb2_2008_2', 'nb2_2008_2', hash, '南部二中2008级2班管理员', 'class_admin', '南部二中', '高中', 2008, '高三(2)班', '班级管理员', '南充', '', ''],
+        // 班级管理员 - 南部三中
+        ['u_nb3_2010_1', 'nb3_2010_1', hash, '南部三中2010级1班管理员', 'class_admin', '南部三中', '高中', 2010, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_nb3_2010_2', 'nb3_2010_2', hash, '南部三中2010级2班管理员', 'class_admin', '南部三中', '高中', 2010, '高三(2)班', '班级管理员', '南充', '', ''],
+        // 班级管理员 - 其他学校
+        ['u_dq_2009_1', 'dq_2009_1', hash, '大桥中学2009级1班管理员', 'class_admin', '大桥中学', '高中', 2009, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_db_2007_1', 'db_2007_1', hash, '东坝中学2007级1班管理员', 'class_admin', '东坝中学', '高中', 2007, '高三(1)班', '班级管理员', '南充', '', ''],
+        ['u_jx_2008_1', 'jx_2008_1', hash, '建兴中学2008级1班管理员', 'class_admin', '建兴中学', '初中', 2008, '初三(1)班', '班级管理员', '南充', '', ''],
+        // 普通用户
         ['u2', 'user', hash, '张同学', 'user', '南部中学', '高中', 2010, '高三(2)班', '软件工程师', '成都', '热爱编程，关注家乡发展。', ''],
         ['u3', 'li', hash, '李同学', 'user', '南部二中', '高中', 2012, '高三(3)班', '教师', '南充', '回到家乡，投身教育。', '']
     ];
@@ -333,9 +423,30 @@ app.get('/api/alumni', (req, res) => {
     });
 });
 
-// 获取待审核校友
+// 获取待审核校友（管理员权限）
 app.get('/api/alumni/pending', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM alumni WHERE status = "pending" ORDER BY created_at DESC', [], (err, rows) => {
+    // 检查权限
+    if (!['superadmin', 'school_admin', 'class_admin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足'));
+    }
+    
+    let sql = 'SELECT * FROM alumni WHERE status = "pending"';
+    const params = [];
+    
+    // 学校管理员只能看自己学校的
+    if (req.user.role === 'school_admin') {
+        sql += ' AND school = ?';
+        params.push(req.user.school);
+    }
+    // 班级管理员只能看自己班级的
+    if (req.user.role === 'class_admin') {
+        sql += ' AND school = ? AND year = ? AND classname = ?';
+        params.push(req.user.school, req.user.year, req.user.classname);
+    }
+    
+    sql += ' ORDER BY created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json(error('服务器错误'));
         res.json(success(rows));
     });
@@ -391,21 +502,62 @@ app.delete('/api/alumni/:id', authenticateToken, (req, res) => {
 });
 
 // 审核通过
+// 审核通过（管理员权限）
 app.post('/api/alumni/:id/approve', authenticateToken, (req, res) => {
-    db.run('UPDATE alumni SET status = "approved" WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json(error('审核失败'));
-        db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, row) => {
-            res.json(success(row));
+    // 检查权限
+    if (!['superadmin', 'school_admin', 'class_admin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足'));
+    }
+    
+    // 获取校友信息
+    db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, alumni) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (!alumni) return res.status(404).json(error('校友不存在'));
+        
+        // 权限验证：学校管理员只能审核自己学校的，班级管理员只能审核自己班级的
+        if (req.user.role === 'school_admin' && alumni.school !== req.user.school) {
+            return res.status(403).json(error('只能审核本校校友'));
+        }
+        if (req.user.role === 'class_admin' && 
+            (alumni.school !== req.user.school || alumni.year !== req.user.year || alumni.classname !== req.user.classname)) {
+            return res.status(403).json(error('只能审核本班校友'));
+        }
+        
+        db.run('UPDATE alumni SET status = "approved" WHERE id = ?', [req.params.id], function(err) {
+            if (err) return res.status(500).json(error('审核失败'));
+            db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, row) => {
+                res.json(success(row));
+            });
         });
     });
 });
 
-// 审核拒绝
+// 审核拒绝（管理员权限）
 app.post('/api/alumni/:id/reject', authenticateToken, (req, res) => {
-    db.run('UPDATE alumni SET status = "rejected" WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json(error('审核失败'));
-        db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, row) => {
-            res.json(success(row));
+    // 检查权限
+    if (!['superadmin', 'school_admin', 'class_admin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足'));
+    }
+    
+    // 获取校友信息
+    db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, alumni) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (!alumni) return res.status(404).json(error('校友不存在'));
+        
+        // 权限验证
+        if (req.user.role === 'school_admin' && alumni.school !== req.user.school) {
+            return res.status(403).json(error('只能审核本校校友'));
+        }
+        if (req.user.role === 'class_admin' && 
+            (alumni.school !== req.user.school || alumni.year !== req.user.year || alumni.classname !== req.user.classname)) {
+            return res.status(403).json(error('只能审核本班校友'));
+        }
+        
+        db.run('UPDATE alumni SET status = "rejected" WHERE id = ?', [req.params.id], function(err) {
+            if (err) return res.status(500).json(error('审核失败'));
+            db.get('SELECT * FROM alumni WHERE id = ?', [req.params.id], (err, row) => {
+                res.json(success(row));
+            });
         });
     });
 });

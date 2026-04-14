@@ -94,7 +94,7 @@
     <div id="page-alumni" class="page">
       <div class="page-topbar">
         <div class="page-topbar-title">校友通讯录</div>
-        <button class="icon-btn" onclick="openModal('addAlumniModal')">＋</button>
+        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addAlumniModal')">＋</button>
       </div>
       <div class="filter-cascade" id="filterCascade"></div>
       <div class="search-row">
@@ -107,7 +107,7 @@
     <div id="page-resource" class="page">
       <div class="page-topbar">
         <div class="page-topbar-title">资源共享</div>
-        <button class="icon-btn" onclick="openModal('addResourceModal')">＋</button>
+        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addResourceModal')">＋</button>
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchResTab(this,'all')">全部</button>
@@ -123,7 +123,7 @@
     <div id="page-activity" class="page">
       <div class="page-topbar">
         <div class="page-topbar-title">校友活动</div>
-        <button class="icon-btn admin-only" onclick="openModal('addActivityModal')">＋</button>
+        <button class="icon-btn admin-only" onclick="if(Auth.requireAdmin()) openModal('addActivityModal')">＋</button>
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchActTab(this,'all')">全部</button>

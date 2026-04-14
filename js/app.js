@@ -7,6 +7,41 @@ let alumniAvatarData = '';
 let profileAvatarData = '';
 let schoolChartInstance = null;
 
+// ===== 权限检查工具 =====
+const Auth = {
+    // 检查是否登录
+    isLoggedIn() {
+        return !!localStorage.getItem('token');
+    },
+
+    // 获取当前用户
+    getUser() {
+        const user = localStorage.getItem('user');
+        return user ? JSON.parse(user) : null;
+    },
+
+    // 检查权限，未登录则跳转
+    requireAuth(redirectUrl) {
+        if (!this.isLoggedIn()) {
+            const returnPath = redirectUrl || window.location.pathname;
+            window.location.href = `/frontend/auth-required.html?return=${encodeURIComponent(returnPath)}`;
+            return false;
+        }
+        return true;
+    },
+
+    // 检查管理员权限
+    requireAdmin() {
+        if (!this.requireAuth()) return false;
+        const user = this.getUser();
+        if (!['superadmin', 'school_admin', 'class_admin'].includes(user.role)) {
+            alert('权限不足：需要管理员权限');
+            return false;
+        }
+        return true;
+    }
+};
+
 // ===== 粒子背景初始化 =====
 function initParticles() {
   if (typeof particlesJS !== 'undefined') {
@@ -385,6 +420,9 @@ function alumniCardHtml(a) {
 }
 
 function showAlumniDetail(id) {
+  // 游客提示登录
+  if (!Auth.requireAuth(`/frontend/index.html#/alumni/${id}`)) return;
+
   const a = AlumniSvc.getById(id);
   if (!a) return;
   const canManage = Perm.canManageAlumni(currentUser, a);
