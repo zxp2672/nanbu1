@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>南部县校友联盟</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+</head>
+<body>
+
+<!-- 启动页 -->
+<div id="splashPage" class="splash-page">
+  <div class="splash-logo">🎓</div>
+  <h1>南部县校友联盟</h1>
+  <p>连接南部学子 · 共叙同窗情谊</p>
+  <div class="splash-schools">
+    <span>南部中学</span><span>南部二中</span><span>南部三中</span>
+    <span>大桥中学</span><span>东坝中学</span><span>建兴中学</span>
+  </div>
+  <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+</div>
+
+<!-- 登录页 -->
+<div id="loginPage" class="login-page" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="logo-icon">🎓</span>
+      <h1>南部县校友联盟</h1>
+      <p>校友登录</p>
+    </div>
+    <div id="loginError" class="login-error" style="display:none">用户名或密码错误</div>
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="loginUser" placeholder="请输入用户名" value="admin">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="loginPass" placeholder="请输入密码" value="123456">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()">登 录</button>
+    <div class="login-hint">
+      <span>总管理员: admin / 123456</span>
+      <span>学校管理员: nb1_admin / 123456</span>
+      <span>普通用户: user / 123456</span>
+    </div>
+  </div>
+</div>
+
+<!-- 主应用 -->
+<div id="mainApp" class="main-app" style="display:none">
+  <!-- 粒子背景容器 -->
+  <div id="particles-js" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none"></div>
+  <div class="app-body" style="position:relative;z-index:1">
+
+    <!-- 首页 -->
+    <div id="page-home" class="page active">
+      <div class="home-hero">
+        <div class="home-hero-grid"></div>
+        <div class="home-hero-content">
+          <div class="home-hero-icon">🎓</div>
+          <h1>南部县校友联盟</h1>
+          <p>DATA INTELLIGENCE PLATFORM · 校友大数据平台</p>
+        </div>
+      </div>
+      <div class="home-stats-grid">
+        <div class="stat-card"><div class="stat-num" id="statSchools">6</div><div class="stat-label">成员学校</div></div>
+        <div class="stat-card"><div class="stat-num" id="statAlumni">0</div><div class="stat-label">注册校友</div></div>
+        <div class="stat-card"><div class="stat-num" id="statActivities">0</div><div class="stat-label">活动数量</div></div>
+        <div class="stat-card"><div class="stat-num" id="statResources">0</div><div class="stat-label">共享资源</div></div>
+      </div>
+      <div class="chart-wrap" style="margin-top:1px">
+        <div class="chart-box">
+          <div class="chart-title">📊 各学校校友分布</div>
+          <div id="schoolChart"></div>
+        </div>
+      </div>
+      <div class="section-header">
+        <div class="section-title">成员学校</div>
+      </div>
+      <div class="schools-grid" id="schoolsList"></div>
+      <div class="section-header">
+        <div class="section-title">最新动态</div>
+        <span class="section-more" onclick="navigateTo('me')">发布动态 ›</span>
+      </div>
+      <div class="feed-list" id="homeFeed"></div>
+    </div>
+
+    <!-- 校友页 -->
+    <div id="page-alumni" class="page">
+      <div class="page-topbar">
+        <div class="page-topbar-title">校友通讯录</div>
+        <button class="icon-btn" onclick="openModal('addAlumniModal')">＋</button>
+      </div>
+      <div class="filter-cascade" id="filterCascade"></div>
+      <div class="search-row">
+        <input type="text" id="alumniSearch" placeholder="搜索姓名/职业/城市/公司..." oninput="renderAlumniList()">
+      </div>
+      <div class="alumni-grid" id="alumniList"></div>
+    </div>
+
+    <!-- 资源页 -->
+    <div id="page-resource" class="page">
+      <div class="page-topbar">
+        <div class="page-topbar-title">资源共享</div>
+        <button class="icon-btn" onclick="openModal('addResourceModal')">＋</button>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchResTab(this,'all')">全部</button>
+        <button class="tab-btn" onclick="switchResTab(this,'job')">招聘</button>
+        <button class="tab-btn" onclick="switchResTab(this,'project')">项目</button>
+        <button class="tab-btn" onclick="switchResTab(this,'invest')">投资</button>
+        <button class="tab-btn" onclick="switchResTab(this,'other')">其他</button>
+      </div>
+      <div class="resource-list" id="resourceList"></div>
+    </div>
+
+    <!-- 活动页 -->
+    <div id="page-activity" class="page">
+      <div class="page-topbar">
+        <div class="page-topbar-title">校友活动</div>
+        <button class="icon-btn admin-only" onclick="openModal('addActivityModal')">＋</button>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchActTab(this,'all')">全部</button>
+        <button class="tab-btn" onclick="switchActTab(this,'upcoming')">即将开始</button>
+        <button class="tab-btn" onclick="switchActTab(this,'ongoing')">进行中</button>
+        <button class="tab-btn" onclick="switchActTab(this,'ended')">已结束</button>
+      </div>
+      <div class="activity-list" id="activityList"></div>
+    </div>
+
+    <!-- 我的页 -->
+    <div id="page-me" class="page">
+      <div class="me-hero" id="meHero"></div>
+      <div class="me-tabs">
+        <button class="me-tab active" onclick="switchMeTab(this,'posts')">动态</button>
+        <button class="me-tab" onclick="switchMeTab(this,'profile')">资料</button>
+        <button class="me-tab" onclick="switchMeTab(this,'settings')">设置</button>
+      </div>
+      <div id="mePostsPanel">
+        <div class="post-compose">
+          <div class="post-compose-row">
+            <div class="feed-avatar" id="composeAvatar"></div>
+            <textarea id="postContent" placeholder="分享你的动态..." rows="3"></textarea>
+          </div>
+          <div class="post-compose-actions">
+            <label class="btn btn-sm btn-secondary">📷 图片<input type="file" accept="image/*" style="display:none" onchange="handlePostImage(this)"></label>
+            <button class="btn btn-sm btn-primary" onclick="submitPost()">发布</button>
+          </div>
+          <div id="postImagePreview"></div>
+        </div>
+        <div id="myPostsList" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+      <div id="meProfilePanel" style="display:none">
+        <div class="profile-form card" style="margin:12px 16px;padding:16px">
+          <div class="avatar-upload-row">
+            <div class="avatar-upload" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">📷</div>
+            <div style="flex:1">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:8px">点击更换头像</div>
+              <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
+              <div class="form-group" style="margin-bottom:0">
+                <label>头像URL（可选）</label>
+                <input type="text" id="profileAvatarUrl" placeholder="https://..." oninput="previewAvatarUrl(this.value)">
+              </div>
+            </div>
+          </div>
+          <div class="form-group"><label>昵称</label><input type="text" id="profileName" placeholder="你的昵称"></div>
+          <div class="form-group"><label>学校</label>
+            <select id="profileSchool">
+              <option value="">请选择学校</option>
+              <option>南部中学</option><option>南部二中</option><option>南部三中</option>
+              <option>大桥中学</option><option>东坝中学</option><option>建兴中学</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>学段</label>
+              <select id="profileLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
+            </div>
+            <div class="form-group"><label>入学年份</label>
+              <input type="number" id="profileYear" placeholder="如 2010" min="1980" max="2030">
+            </div>
+          </div>
+          <div class="form-group"><label>班级</label><input type="text" id="profileClass" placeholder="如 高三(2)班"></div>
+          <div class="form-group"><label>职业</label><input type="text" id="profileJob" placeholder="职业/公司"></div>
+          <div class="form-group"><label>城市</label><input type="text" id="profileCity" placeholder="现居城市"></div>
+          <div class="form-group"><label>个人简介</label><textarea id="profileBio" rows="3" placeholder="介绍一下自己..."></textarea></div>
+          <button class="btn btn-primary btn-block" onclick="saveProfile()">保存资料</button>
+        </div>
+      </div>
+      <div id="meSettingsPanel" style="display:none">
+        <div class="settings-list">
+          <div class="settings-item" onclick="doLogout()"><span>🚪</span><span>退出登录</span><span>›</span></div>
+          <div class="settings-item admin-only" onclick="navigateTo('admin')"><span>⚙️</span><span>系统管理</span><span>›</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 管理页 -->
+    <div id="page-admin" class="page">
+      <div class="page-topbar">
+        <div class="page-topbar-title">系统管理</div>
+        <button class="icon-btn" onclick="navigateTo('me')" style="font-size:14px">返回</button>
+      </div>
+      <div class="admin-grid">
+        <div class="admin-card" onclick="showAdminSection('pending')">
+          <div class="admin-card-icon">⏳</div>
+          <div class="admin-card-label">待审核校友</div>
+          <div class="admin-card-count" id="adminPendingCount">0</div>
+        </div>
+        <div class="admin-card" onclick="showAdminSection('alumni')">
+          <div class="admin-card-icon">🎓</div>
+          <div class="admin-card-label">校友管理</div>
+          <div class="admin-card-count" id="adminAlumniCount">0</div>
+        </div>
+        <div class="admin-card superadmin-only" onclick="showAdminSection('users')">
+          <div class="admin-card-icon">👥</div>
+          <div class="admin-card-label">用户管理</div>
+          <div class="admin-card-count" id="adminUserCount">0</div>
+        </div>
+        <div class="admin-card superadmin-only" onclick="resetData();showToast('数据已重置');renderAdminPage()">
+          <div class="admin-card-icon">🔄</div>
+          <div class="admin-card-label">重置演示数据</div>
+          <div class="admin-card-count" style="font-size:14px">›</div>
+        </div>
+      </div>
+      <div id="adminContent"></div>
+    </div>
+
+  </div>
+
+  <!-- 底部导航 -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="navigateTo('home')" data-page="home">
+      <div class="nav-icon-wrap"><div class="nav-icon">🏠</div></div><div class="nav-label">首页</div>
+    </div>
+    <div class="nav-item" onclick="navigateTo('alumni')" data-page="alumni">
+      <div class="nav-icon-wrap"><div class="nav-icon">👥</div></div><div class="nav-label">校友</div>
+    </div>
+    <div class="nav-item" onclick="navigateTo('resource')" data-page="resource">
+      <div class="nav-icon-wrap"><div class="nav-icon">📦</div></div><div class="nav-label">资源</div>
+    </div>
+    <div class="nav-item" onclick="navigateTo('activity')" data-page="activity">
+      <div class="nav-icon-wrap"><div class="nav-icon">🎉</div></div><div class="nav-label">活动</div>
+    </div>
+    <div class="nav-item" onclick="navigateTo('me')" data-page="me">
+      <div class="nav-icon-wrap"><div class="nav-icon">👤</div></div><div class="nav-label">我的</div>
+    </div>
+  </nav>
+</div>
+
+<!-- ===== 模态框 ===== -->
+
+<!-- 确认框 -->
+<div id="confirmModal" class="modal">
+  <div class="modal-content modal-center" style="width:300px">
+    <div class="modal-header"><h3>确认操作</h3></div>
+    <div class="modal-body"><p id="confirmMsg" style="color:var(--text2)"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('confirmModal')">取消</button>
+      <button class="btn btn-danger btn-sm" id="confirmOk">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加/编辑校友 -->
+<div id="addAlumniModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="alumniModalTitle">添加校友</h3>
+      <button class="modal-close" onclick="closeModal('addAlumniModal')">×</button>
+    </div>
+    <div class="modal-form">
+      <input type="hidden" id="editAlumniId">
+      <div class="form-group">
+        <label>头像URL（可选）</label>
+        <div class="avatar-input-row">
+          <div class="avatar-preview-small" id="alumniAvatarPreview" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>
+          <input type="text" id="aAvatarUrl" placeholder="https://... 或留空" oninput="previewAlumniAvatar(this.value)" style="flex:1">
+        </div>
+        <div style="margin-top:6px">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text3)">
+            <span>或上传本地图片：</span>
+            <input type="file" id="aAvatarFile" accept="image/*" style="display:none" onchange="handleAlumniAvatarFile(this)">
+            <span class="btn btn-sm btn-secondary" onclick="document.getElementById('aAvatarFile').click()">选择文件</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>姓名 *</label><input type="text" id="aName" placeholder="真实姓名"></div>
+        <div class="form-group"><label>学校 *</label>
+          <select id="aSchool">
+            <option value="">请选择</option>
+            <option>南部中学</option><option>南部二中</option><option>南部三中</option>
+            <option>大桥中学</option><option>东坝中学</option><option>建兴中学</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>学段</label>
+          <select id="aLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
+        </div>
+        <div class="form-group"><label>入学年份</label><input type="number" id="aYear" placeholder="如 2010"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>班级</label><input type="text" id="aClass" placeholder="如 高三(2)班"></div>
+        <div class="form-group"><label>联系电话</label><input type="text" id="aPhone" placeholder="手机号码"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>职业</label><input type="text" id="aJob" placeholder="职业"></div>
+        <div class="form-group"><label>公司</label><input type="text" id="aCompany" placeholder="公司名称"></div>
+      </div>
+      <div class="form-group"><label>城市</label><input type="text" id="aCity" placeholder="现居城市"></div>
+      <div class="form-group"><label>个人简介</label><textarea id="aBio" rows="2" placeholder="简单介绍..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addAlumniModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveAlumni()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 校友详情 -->
+<div id="alumniDetailModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3>校友详情</h3><button class="modal-close" onclick="closeModal('alumniDetailModal')">×</button></div>
+    <div class="modal-body" id="alumniDetailBody"></div>
+    <div class="modal-footer" id="alumniDetailFooter"></div>
+  </div>
+</div>
+
+<!-- 添加资源 -->
+<div id="addResourceModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3 id="resModalTitle">发布资源</h3><button class="modal-close" onclick="closeModal('addResourceModal')">×</button></div>
+    <div class="modal-form">
+      <input type="hidden" id="editResId">
+      <div class="form-group"><label>标题 *</label><input type="text" id="rTitle" placeholder="资源标题"></div>
+      <div class="form-row">
+        <div class="form-group"><label>类型</label>
+          <select id="rType">
+            <option value="job">招聘</option><option value="project">项目</option>
+            <option value="invest">投资</option><option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group"><label>联系方式</label><input type="text" id="rContact" placeholder="电话/微信"></div>
+      </div>
+      <div class="form-group"><label>详细描述 *</label><textarea id="rDesc" rows="4" placeholder="详细描述资源内容..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addResourceModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveResource()">发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加活动 -->
+<div id="addActivityModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3 id="actModalTitle">发布活动</h3><button class="modal-close" onclick="closeModal('addActivityModal')">×</button></div>
+    <div class="modal-form">
+      <input type="hidden" id="editActId">
+      <div class="form-group"><label>活动名称 *</label><input type="text" id="actName" placeholder="活动名称"></div>
+      <div class="form-row">
+        <div class="form-group"><label>开始时间</label><input type="datetime-local" id="actStart"></div>
+        <div class="form-group"><label>结束时间</label><input type="datetime-local" id="actEnd"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>地点</label><input type="text" id="actLocation" placeholder="活动地点"></div>
+        <div class="form-group"><label>人数上限</label><input type="number" id="actCapacity" placeholder="0=不限"></div>
+      </div>
+      <div class="form-group"><label>活动描述</label><textarea id="actDesc" rows="3" placeholder="活动详情..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addActivityModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveActivity()">发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- 活动详情 -->
+<div id="activityDetailModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3>活动详情</h3><button class="modal-close" onclick="closeModal('activityDetailModal')">×</button></div>
+    <div class="modal-body" id="activityDetailBody"></div>
+    <div class="modal-footer" id="activityDetailFooter"></div>
+  </div>
+</div>
+
+<!-- 添加用户（管理员） -->
+<div id="addUserModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3 id="userModalTitle">添加用户</h3><button class="modal-close" onclick="closeModal('addUserModal')">×</button></div>
+    <div class="modal-form">
+      <input type="hidden" id="editUserId">
+      <div class="form-row">
+        <div class="form-group"><label>用户名 *</label><input type="text" id="uUsername" placeholder="登录用户名"></div>
+        <div class="form-group"><label>密码 *</label><input type="password" id="uPassword" placeholder="登录密码"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>昵称</label><input type="text" id="uName" placeholder="显示名称"></div>
+        <div class="form-group"><label>角色 *</label>
+          <select id="uRole" onchange="renderAdminScopeFields()">
+            <option value="user">普通用户</option>
+            <option value="class_admin">班级管理员</option>
+            <option value="grade_admin">年级管理员</option>
+            <option value="school_admin">学校管理员</option>
+            <option value="superadmin">总管理员</option>
+          </select>
+        </div>
+      </div>
+      <div id="adminScopeFields"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addUserModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
