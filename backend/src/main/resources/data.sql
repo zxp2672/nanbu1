@@ -1,4 +1,4 @@
--- 南部县校友联盟初始数据
+-- 南部县校友会联盟初始数据
 -- 密码使用BCrypt加密，明文为: 123456
 
 -- 插入学校数据
@@ -14,7 +14,7 @@ ON DUPLICATE KEY UPDATE name = name;
 -- 插入用户数据
 -- 总管理员
 INSERT INTO users (id, username, password, name, role, job, city, bio, created_at) VALUES
-(1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EO', '总管理员', 'superadmin', '系统管理员', '南充', '南部县校友联盟总管理员', '2024-01-01')
+(1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EO', '总管理员', 'superadmin', '系统管理员', '南充', '南部县校友会联盟总管理员', '2024-01-01')
 ON DUPLICATE KEY UPDATE username = username;
 
 -- 学校管理员

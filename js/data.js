@@ -19,7 +19,7 @@ const SCHOOLS = [
 const DEMO = {
   users: [
     // 总管理员
-    { id: 'u0', username: 'admin', password: '123456', role: 'superadmin', name: '总管理员', school: '', level: '', year: '', classname: '', job: '系统管理员', city: '南充', bio: '南部县校友联盟总管理员', avatar: '', adminScope: {}, createdAt: '2024-01-01' },
+    { id: 'u0', username: 'admin', password: '123456', role: 'superadmin', name: '总管理员', school: '', level: '', year: '', classname: '', job: '系统管理员', city: '南充', bio: '南部县校友会联盟总管理员', avatar: '', adminScope: {}, createdAt: '2024-01-01' },
     // 学校管理员
     { id: 'u_nb1', username: 'nb1_admin', password: '123456', role: 'school_admin', name: '南部中学管理员', school: '南部中学', level: '', year: '', classname: '', job: '学校管理员', city: '南充', bio: '', avatar: '', adminScope: { school: '南部中学' }, createdAt: '2024-01-01' },
     { id: 'u_nb2', username: 'nb2_admin', password: '123456', role: 'school_admin', name: '南部二中管理员', school: '南部二中', level: '', year: '', classname: '', job: '学校管理员', city: '南充', bio: '', avatar: '', adminScope: { school: '南部二中' }, createdAt: '2024-01-01' },

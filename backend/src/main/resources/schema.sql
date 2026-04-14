@@ -1,4 +1,4 @@
--- 南部县校友联盟数据库结构
+-- 南部县校友会联盟数据库结构
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (

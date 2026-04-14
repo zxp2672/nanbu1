@@ -17,8 +17,8 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>南部县校友联盟</name>
-    <description>南部县校友联盟管理系统</description>
+    <name>南部县校友会联盟</name>
+    <description>南部县校友会联盟管理系统</description>
 
     <properties>
         <java.version>17</java.version>

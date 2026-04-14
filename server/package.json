@@ -1,7 +1,7 @@
 {
   "name": "nanbu-alumni-server",
   "version": "1.0.0",
-  "description": "南部县校友联盟服务器",
+  "description": "南部县校友会联盟服务器",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
