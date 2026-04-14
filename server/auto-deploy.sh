@@ -21,6 +21,10 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] 更新依赖..." | tee -a $LOG_FILE
 cd $SERVER_DIR
 npm install --production 2>&1 | tee -a $LOG_FILE
 
+# 初始化/补充演示数据
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 初始化演示数据..." | tee -a $LOG_FILE
+node $SERVER_DIR/init-database.js 2>&1 | tee -a $LOG_FILE
+
 # 重启应用
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 重启应用..." | tee -a $LOG_FILE
 pm2 restart nanbu-alumni 2>&1 | tee -a $LOG_FILE
