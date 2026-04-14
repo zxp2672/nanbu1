@@ -84,15 +84,15 @@ function doLogout() {
   $('loginPage').style.display = 'flex';
 }
 
-function startApp() {
+async function startApp() {
   $('mainApp').style.display = 'flex';
   applyPermissions();
-  renderHomePage();
-  renderAlumniFilter();
-  renderAlumniList();
-  renderResourceList();
-  renderActivityList();
-  renderMePage();
+  await renderHomePage();
+  await renderAlumniFilter();
+  await renderAlumniList();
+  await renderResourceList();
+  await renderActivityList();
+  await renderMePage();
 }
 
 function applyPermissions() {
@@ -107,29 +107,37 @@ function applyPermissions() {
 }
 
 // ===== 导航 =====
-function navigateTo(page) {
+async function navigateTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pg = $('page-' + page);
   if (pg) pg.classList.add('active');
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
   if (nav) nav.classList.add('active');
-  if (page === 'home') renderHomePage();
-  if (page === 'admin') renderAdminPage();
-  if (page === 'me') renderMePage();
+  if (page === 'home') await renderHomePage();
+  if (page === 'admin') await renderAdminPage();
+  if (page === 'me') await renderMePage();
 }
 
 // ===== 首页 =====
-function renderHomePage() {
-  const alumni = AlumniSvc.getApproved();
-  const activities = ActivitySvc.getAll();
-  const resources = ResourceSvc.getAll();
-  animateNum($('statAlumni'), alumni.length);
-  animateNum($('statActivities'), activities.length);
-  animateNum($('statResources'), resources.length);
-  renderSchoolChart(alumni);
-  renderSchoolsList(alumni);
-  renderHomeFeed();
+async function renderHomePage() {
+  try {
+    const alumni = await AlumniSvc.getApproved();
+    const activities = await ActivitySvc.getAll();
+    const resources = await ResourceSvc.getAll();
+    animateNum($('statAlumni'), alumni.length || 0);
+    animateNum($('statActivities'), activities.length || 0);
+    animateNum($('statResources'), resources.length || 0);
+    renderSchoolChart(alumni);
+    renderSchoolsList(alumni);
+    await renderHomeFeed();
+  } catch (e) {
+    console.error('渲染首页失败:', e);
+    // 显示默认值
+    $('statAlumni').textContent = '0';
+    $('statActivities').textContent = '0';
+    $('statResources').textContent = '0';
+  }
 }
 
 function renderSchoolChart(alumni) {
@@ -202,10 +210,14 @@ function filterBySchool(name) {
   renderAlumniList();
 }
 
-function renderHomeFeed() {
-  const posts = PostSvc.getAll().slice(0, 5);
-  $('homeFeed').innerHTML = posts.length ? posts.map(p => feedItemHtml(p)).join('') :
-    '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>';
+async function renderHomeFeed() {
+  try {
+    const posts = (await PostSvc.getAll()).slice(0, 5);
+    $('homeFeed').innerHTML = posts.length ? posts.map(p => feedItemHtml(p)).join('') :
+      '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>';
+  } catch (e) {
+    $('homeFeed').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>加载失败</p></div>';
+  }
 }
 
 function feedItemHtml(p) {
@@ -224,12 +236,12 @@ function feedItemHtml(p) {
 }
 
 // ===== 校友页 =====
-function renderAlumniFilter() {
+async function renderAlumniFilter() {
   const schools = ['', ...SCHOOLS.map(s => s.name)];
   const levels = ['', '初中', '高中'];
-  const years = ['', ...getYears()];
+  const years = ['', ...await getYears()];
   const classes = filterState.school || filterState.level || filterState.year
-    ? ['', ...AlumniSvc.getClasses(filterState.school, filterState.level, filterState.year)]
+    ? ['', ...(await AlumniSvc.getClasses(filterState.school, filterState.level, filterState.year))]
     : [];
 
   let html = `<div class="filter-label">学校</div><div class="filter-row filter-scroll">`;
@@ -253,33 +265,38 @@ function renderAlumniFilter() {
   $('filterCascade').innerHTML = html;
 }
 
-function getYears() {
-  const all = AlumniSvc.getApproved();
+async function getYears() {
+  const all = await AlumniSvc.getApproved();
   const filtered = filterState.school ? all.filter(a => a.school === filterState.school) : all;
   const lf = filterState.level ? filtered.filter(a => a.level === filterState.level) : filtered;
   return [...new Set(lf.map(a => a.year).filter(Boolean))].sort((a,b) => b-a).map(String);
 }
 
-function setFilter(key, val) {
+async function setFilter(key, val) {
   filterState[key] = val;
   if (key === 'school') { filterState.level = ''; filterState.year = ''; filterState.classname = ''; }
   if (key === 'level') { filterState.year = ''; filterState.classname = ''; }
   if (key === 'year') { filterState.classname = ''; }
-  renderAlumniFilter();
-  renderAlumniList();
+  await renderAlumniFilter();
+  await renderAlumniList();
 }
 
-function renderAlumniList() {
+async function renderAlumniList() {
   const q = $('alumniSearch') ? $('alumniSearch').value.trim() : '';
-  let list = AlumniSvc.search(q, filterState.school, filterState.level, filterState.year, filterState.classname);
-  // 管理员可看到自己权限范围内的 pending
-  if (Perm.isAnyAdmin(currentUser)) {
-    const pending = AlumniSvc.getPending().filter(a => Perm.canManageAlumni(currentUser, a));
-    const pendingIds = new Set(list.map(a => a.id));
-    pending.forEach(a => { if (!pendingIds.has(a.id)) list.push(a); });
+  try {
+    let list = await AlumniSvc.search(q, filterState.school, filterState.level, filterState.year, filterState.classname);
+    // 管理员可看到自己权限范围内的 pending
+    if (Perm.isAnyAdmin(currentUser)) {
+      const pending = (await AlumniSvc.getPending()).filter(a => Perm.canManageAlumni(currentUser, a));
+      const pendingIds = new Set(list.map(a => a.id));
+      pending.forEach(a => { if (!pendingIds.has(a.id)) list.push(a); });
+    }
+    $('alumniList').innerHTML = list.length ? list.map(a => alumniCardHtml(a)).join('') :
+      '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><p>暂无校友信息</p></div>';
+  } catch (e) {
+    console.error('渲染校友列表失败:', e);
+    $('alumniList').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><p>加载失败</p></div>';
   }
-  $('alumniList').innerHTML = list.length ? list.map(a => alumniCardHtml(a)).join('') :
-    '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><p>暂无校友信息</p></div>';
 }
 
 function alumniCardHtml(a) {
@@ -301,13 +318,13 @@ function alumniCardHtml(a) {
   </div>`;
 }
 
-function showAlumniDetail(id) {
-  const a = AlumniSvc.getById(id);
+async function showAlumniDetail(id) {
+  const a = await AlumniSvc.getById(id);
   if (!a) return;
   const canManage = Perm.canManageAlumni(currentUser, a);
-  const posts = PostSvc.getAll().filter(p => p.authorId && a.userId && p.authorId === a.userId).slice(0, 5);
-  const resources = ResourceSvc.getAll().filter(r => r.authorId && a.userId && r.authorId === a.userId);
-  const activities = ActivitySvc.getAll().filter(act => (act.signups||[]).find(s => a.userId && s.userId === a.userId));
+  const posts = (await PostSvc.getAll()).filter(p => p.authorId && a.userId && p.authorId === a.userId).slice(0, 5);
+  const resources = (await ResourceSvc.getAll()).filter(r => r.authorId && a.userId && r.authorId === a.userId);
+  const activities = (await ActivitySvc.getAll()).filter(act => (act.signups||[]).find(s => a.userId && s.userId === a.userId));
 
   $('alumniDetailBody').innerHTML = `
     <div class="detail-hero">
@@ -358,22 +375,22 @@ function switchDetailTab(btn, panelId) {
   const panel = $(panelId); if (panel) panel.style.display = '';
 }
 
-function approveAlumni(id) {
-  AlumniSvc.approve(id); closeModal('alumniDetailModal');
-  showToast('已通过审核'); renderAlumniList(); renderAdminPage();
+async function approveAlumni(id) {
+  await AlumniSvc.approve(id); closeModal('alumniDetailModal');
+  showToast('已通过审核'); await renderAlumniList(); await renderAdminPage();
 }
-function rejectAlumni(id) {
-  AlumniSvc.reject(id); closeModal('alumniDetailModal');
-  showToast('已拒绝'); renderAlumniList(); renderAdminPage();
+async function rejectAlumni(id) {
+  await AlumniSvc.reject(id); closeModal('alumniDetailModal');
+  showToast('已拒绝'); await renderAlumniList(); await renderAdminPage();
 }
 function deleteAlumni(id) {
-  confirm('确定删除该校友信息？', () => {
-    AlumniSvc.delete(id); closeModal('alumniDetailModal');
-    showToast('已删除'); renderAlumniList(); renderAdminPage();
+  confirm('确定删除该校友信息？', async () => {
+    await AlumniSvc.delete(id); closeModal('alumniDetailModal');
+    showToast('已删除'); await renderAlumniList(); await renderAdminPage();
   });
 }
-function editAlumni(id) {
-  const a = AlumniSvc.getById(id);
+async function editAlumni(id) {
+  const a = await AlumniSvc.getById(id);
   if (!a) return;
   closeModal('alumniDetailModal');
   $('alumniModalTitle').textContent = '编辑校友';
@@ -394,7 +411,7 @@ function editAlumni(id) {
   openModal('addAlumniModal');
 }
 
-function saveAlumni() {
+async function saveAlumni() {
   const name = $('aName').value.trim(), school = $('aSchool').value;
   if (!name || !school) { showToast('请填写姓名和学校'); return; }
   const avatar = alumniAvatarData || $('aAvatarUrl').value.trim();
@@ -405,13 +422,13 @@ function saveAlumni() {
     userId: currentUser.id };
   const editId = $('editAlumniId').value;
   if (editId) {
-    AlumniSvc.update(editId, data); showToast('已更新');
+    await AlumniSvc.update(editId, data); showToast('已更新');
   } else {
-    AlumniSvc.add(data); showToast('已提交，等待审核');
+    await AlumniSvc.add(data); showToast('已提交，等待审核');
   }
   alumniAvatarData = '';
   closeModal('addAlumniModal');
-  renderAlumniList(); renderAdminPage();
+  await renderAlumniList(); await renderAdminPage();
 }
 
 function previewAlumniAvatar(url) {
@@ -427,14 +444,18 @@ function handleAlumniAvatarFile(input) {
 }
 
 // ===== 资源页 =====
-function switchResTab(btn, type) {
+async function switchResTab(btn, type) {
   document.querySelectorAll('#page-resource .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); resTab = type; renderResourceList();
+  btn.classList.add('active'); resTab = type; await renderResourceList();
 }
-function renderResourceList() {
-  const list = ResourceSvc.filter(resTab);
-  $('resourceList').innerHTML = list.length ? list.map(r => resourceCardHtml(r)).join('') :
-    '<div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无资源</p></div>';
+async function renderResourceList() {
+  try {
+    const list = await ResourceSvc.filter(resTab);
+    $('resourceList').innerHTML = list.length ? list.map(r => resourceCardHtml(r)).join('') :
+      '<div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无资源</p></div>';
+  } catch (e) {
+    $('resourceList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>加载失败</p></div>';
+  }
 }
 function resourceCardHtml(r) {
   const canDel = currentUser && (r.authorId === currentUser.id || Perm.isSuperAdmin(currentUser));
@@ -451,31 +472,35 @@ function resourceCardHtml(r) {
     </div>
   </div>`;
 }
-function saveResource() {
+async function saveResource() {
   const title = $('rTitle').value.trim(), desc = $('rDesc').value.trim();
   if (!title || !desc) { showToast('请填写标题和描述'); return; }
   const editId = $('editResId').value;
   const data = { title, type: $('rType').value, desc, contact: $('rContact').value.trim(),
     author: currentUser.name || currentUser.username, authorId: currentUser.id };
-  if (editId) { ResourceSvc.update(editId, data); showToast('已更新'); }
-  else { ResourceSvc.add(data); showToast('发布成功'); }
+  if (editId) { await ResourceSvc.update(editId, data); showToast('已更新'); }
+  else { await ResourceSvc.add(data); showToast('发布成功'); }
   closeModal('addResourceModal');
   $('rTitle').value=''; $('rDesc').value=''; $('rContact').value=''; $('editResId').value='';
-  renderResourceList();
+  await renderResourceList();
 }
 function deleteResource(id) {
-  confirm('确定删除该资源？', () => { ResourceSvc.delete(id); renderResourceList(); showToast('已删除'); });
+  confirm('确定删除该资源？', async () => { await ResourceSvc.delete(id); await renderResourceList(); showToast('已删除'); });
 }
 
 // ===== 活动页 =====
-function switchActTab(btn, status) {
+async function switchActTab(btn, status) {
   document.querySelectorAll('#page-activity .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); actTab = status; renderActivityList();
+  btn.classList.add('active'); actTab = status; await renderActivityList();
 }
-function renderActivityList() {
-  const list = ActivitySvc.filter(actTab);
-  $('activityList').innerHTML = list.length ? list.map(a => actCardHtml(a)).join('') :
-    '<div class="empty-state"><div class="empty-state-icon">🎉</div><p>暂无活动</p></div>';
+async function renderActivityList() {
+  try {
+    const list = await ActivitySvc.filter(actTab);
+    $('activityList').innerHTML = list.length ? list.map(a => actCardHtml(a)).join('') :
+      '<div class="empty-state"><div class="empty-state-icon">🎉</div><p>暂无活动</p></div>';
+  } catch (e) {
+    $('activityList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎉</div><p>加载失败</p></div>';
+  }
 }
 function actCardHtml(a) {
   const status = ActivitySvc.getStatus(a);
@@ -548,52 +573,49 @@ function showActivityDetail(id) {
   openModal('activityDetailModal');
 }
 
-function doSignup(id) {
-  const a = ActivitySvc.getById(id);
+async function doSignup(id) {
+  const a = await ActivitySvc.getById(id);
   if (!a) return;
-  const snap = { userId: currentUser.id, name: currentUser.name||currentUser.username,
-    avatar: currentUser.avatar||'', school: currentUser.school||'', signedAt: new Date().toISOString() };
-  ActivitySvc.signup(id, snap);
+  await ActivitySvc.signup(id);
   closeModal('activityDetailModal');
-  showToast('报名成功！'); renderActivityList();
+  showToast('报名成功！'); await renderActivityList();
 }
-function cancelSignup(id) {
-  ActivitySvc.cancelSignup(id, currentUser.id);
+async function cancelSignup(id) {
+  await ActivitySvc.cancelSignup(id);
   closeModal('activityDetailModal');
-  showToast('已取消报名'); renderActivityList();
+  showToast('已取消报名'); await renderActivityList();
 }
-function saveActivity() {
+async function saveActivity() {
   const name = $('actName').value.trim();
   if (!name) { showToast('请填写活动名称'); return; }
   const editId = $('editActId').value;
-  const data = { name, startTime: $('actStart').value, endTime: $('actEnd').value,
+  const data = { name, start_time: $('actStart').value, end_time: $('actEnd').value,
     location: $('actLocation').value.trim(), capacity: parseInt($('actCapacity').value)||0,
-    desc: $('actDesc').value.trim(),
-    organizer: { userId: currentUser.id, name: currentUser.name||currentUser.username, avatar: currentUser.avatar||'' } };
-  if (editId) { ActivitySvc.update(editId, data); showToast('已更新'); }
-  else { ActivitySvc.add(data); showToast('活动已发布'); }
+    description: $('actDesc').value.trim() };
+  if (editId) { await ActivitySvc.update(editId, data); showToast('已更新'); }
+  else { await ActivitySvc.add(data); showToast('活动已发布'); }
   closeModal('addActivityModal');
   $('actName').value=''; $('actStart').value=''; $('actEnd').value='';
   $('actLocation').value=''; $('actCapacity').value=''; $('actDesc').value=''; $('editActId').value='';
-  renderActivityList();
+  await renderActivityList();
 }
-function editActivity(id) {
-  const a = ActivitySvc.getById(id); if (!a) return;
+async function editActivity(id) {
+  const a = await ActivitySvc.getById(id); if (!a) return;
   closeModal('activityDetailModal');
   $('actModalTitle').textContent = '编辑活动';
   $('editActId').value = id;
   $('actName').value = a.name||'';
-  $('actStart').value = a.startTime ? a.startTime.slice(0,16) : '';
-  $('actEnd').value = a.endTime ? a.endTime.slice(0,16) : '';
+  $('actStart').value = a.start_time ? a.start_time.slice(0,16) : '';
+  $('actEnd').value = a.end_time ? a.end_time.slice(0,16) : '';
   $('actLocation').value = a.location||'';
   $('actCapacity').value = a.capacity||'';
-  $('actDesc').value = a.desc||'';
+  $('actDesc').value = a.description||'';
   openModal('addActivityModal');
 }
 function deleteActivity(id) {
-  confirm('确定删除该活动？', () => {
-    ActivitySvc.delete(id); closeModal('activityDetailModal');
-    showToast('已删除'); renderActivityList();
+  confirm('确定删除该活动？', async () => {
+    await ActivitySvc.delete(id); closeModal('activityDetailModal');
+    showToast('已删除'); await renderActivityList();
   });
 }
 
@@ -623,8 +645,8 @@ function switchMeTab(btn, panel) {
   $('meProfilePanel').style.display = panel==='profile' ? '' : 'none';
   $('meSettingsPanel').style.display = panel==='settings' ? '' : 'none';
 }
-function renderMyPosts() {
-  const posts = PostSvc.getAll().filter(p => p.authorId === currentUser.id);
+async function renderMyPosts() {
+  const posts = (await PostSvc.getAll()).filter(p => p.author_id === currentUser.id);
   $('myPostsList').innerHTML = posts.length ? posts.map(p => `
     <div class="feed-item">
       <div class="feed-avatar">${avatarHtml(p.avatar, p.author, 'feed-avatar')}</div>
@@ -659,7 +681,7 @@ function handlePostImage(input) {
   reader.readAsDataURL(file);
 }
 function deletePost(id) {
-  confirm('确定删除该动态？', () => { PostSvc.delete(id); renderMyPosts(); renderHomeFeed(); showToast('已删除'); });
+  confirm('确定删除该动态？', async () => { await PostSvc.delete(id); await renderMyPosts(); await renderHomeFeed(); showToast('已删除'); });
 }
 function loadProfileForm() {
   const u = currentUser;
@@ -676,16 +698,16 @@ function loadProfileForm() {
   if (u.avatar) { prev.innerHTML = `<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover" alt="">`; }
   else { prev.textContent = '📷'; }
 }
-function saveProfile() {
+async function saveProfile() {
   const data = { name: $('profileName').value.trim(), school: $('profileSchool').value,
     level: $('profileLevel').value, year: parseInt($('profileYear').value)||'',
     classname: $('profileClass').value.trim(), job: $('profileJob').value.trim(),
     city: $('profileCity').value.trim(), bio: $('profileBio').value.trim(),
     avatar: profileAvatarData || $('profileAvatarUrl').value.trim() };
-  UserSvc.update(currentUser.id, data);
-  currentUser = UserSvc.getById(currentUser.id);
+  await UserSvc.update(currentUser.id, data);
+  currentUser = await UserSvc.getById(currentUser.id);
   profileAvatarData = '';
-  showToast('资料已保存'); renderMePage();
+  showToast('资料已保存'); await renderMePage();
 }
 function handleAvatarChange(input) {
   const file = input.files[0]; if (!file) return;
@@ -704,21 +726,21 @@ function previewAvatarUrl(url) {
 }
 
 // ===== 管理页 =====
-function renderAdminPage() {
-  const pending = AlumniSvc.getPending().filter(a => Perm.canManageAlumni(currentUser, a));
-  const managed = AlumniSvc.getAll().filter(a => Perm.canManageAlumni(currentUser, a));
-  const users = UserSvc.getAll();
+async function renderAdminPage() {
+  const pending = (await AlumniSvc.getPending()).filter(a => Perm.canManageAlumni(currentUser, a));
+  const managed = (await AlumniSvc.getAll()).filter(a => Perm.canManageAlumni(currentUser, a));
+  const users = await UserSvc.getAll();
   $('adminPendingCount').textContent = pending.length;
   $('adminAlumniCount').textContent = managed.length;
   const uc = $('adminUserCount'); if (uc) uc.textContent = users.length;
 }
-function showAdminSection(section) {
-  if (section === 'pending') renderAdminPending();
-  if (section === 'alumni') renderAdminAlumni();
-  if (section === 'users') renderAdminUsers();
+async function showAdminSection(section) {
+  if (section === 'pending') await renderAdminPending();
+  if (section === 'alumni') await renderAdminAlumni();
+  if (section === 'users') await renderAdminUsers();
 }
-function renderAdminPending() {
-  const list = AlumniSvc.getPending().filter(a => Perm.canManageAlumni(currentUser, a));
+async function renderAdminPending() {
+  const list = (await AlumniSvc.getPending()).filter(a => Perm.canManageAlumni(currentUser, a));
   $('adminContent').innerHTML = `<div class="admin-section">
     <div class="admin-section-title">待审核校友（${list.length}）</div>
     <div class="pending-list">${list.length ? list.map(a => `
@@ -737,8 +759,8 @@ function renderAdminPending() {
     </div>
   </div>`;
 }
-function renderAdminAlumni() {
-  const list = AlumniSvc.getAll().filter(a => Perm.canManageAlumni(currentUser, a));
+async function renderAdminAlumni() {
+  const list = (await AlumniSvc.getAll()).filter(a => Perm.canManageAlumni(currentUser, a));
   $('adminContent').innerHTML = `<div class="admin-section">
     <div class="admin-section-title">校友管理（${list.length}）</div>
     <table class="admin-table">
@@ -755,9 +777,9 @@ function renderAdminAlumni() {
     </table>
   </div>`;
 }
-function renderAdminUsers() {
+async function renderAdminUsers() {
   if (!Perm.isSuperAdmin(currentUser)) return;
-  const list = UserSvc.getAll();
+  const list = await UserSvc.getAll();
   $('adminContent').innerHTML = `<div class="admin-section">
     <div class="admin-section-title">用户管理（${list.length}）<button class="btn btn-primary btn-sm" onclick="openAddUser()">添加用户</button></div>
     <table class="admin-table">
@@ -781,8 +803,8 @@ function openAddUser() {
   renderAdminScopeFields();
   openModal('addUserModal');
 }
-function editUser(id) {
-  const u = UserSvc.getById(id); if (!u) return;
+async function editUser(id) {
+  const u = await UserSvc.getById(id); if (!u) return;
   $('userModalTitle').textContent = '编辑用户';
   $('editUserId').value = id;
   $('uUsername').value = u.username||'';
@@ -813,7 +835,7 @@ function renderAdminScopeFields(scope) {
   }
   $('adminScopeFields').innerHTML = html;
 }
-function saveUser() {
+async function saveUser() {
   const username = $('uUsername').value.trim(), role = $('uRole').value;
   if (!username) { showToast('请填写用户名'); return; }
   const editId = $('editUserId').value;
@@ -825,16 +847,16 @@ function saveUser() {
   const data = { username, role, name: $('uName').value.trim(), adminScope: scope };
   const pw = $('uPassword').value;
   if (pw) data.password = pw;
-  if (editId) { UserSvc.update(editId, data); showToast('已更新'); }
+  if (editId) { await UserSvc.update(editId, data); showToast('已更新'); }
   else {
     if (!pw) { showToast('请填写密码'); return; }
-    UserSvc.add(data); showToast('用户已添加');
+    await UserSvc.add(data); showToast('用户已添加');
   }
   closeModal('addUserModal');
-  renderAdminUsers();
+  await renderAdminUsers();
 }
 function deleteUser(id) {
-  confirm('确定删除该用户？', () => { UserSvc.delete(id); renderAdminUsers(); showToast('已删除'); });
+  confirm('确定删除该用户？', async () => { await UserSvc.delete(id); await renderAdminUsers(); showToast('已删除'); });
 }
 
 // ===== 重置数据 =====
