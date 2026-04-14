@@ -196,16 +196,25 @@ function renderSchoolChart(alumni) {
       axisTick: { lineStyle: { color: '#1a3060' } },
       axisLabel: { 
         color: '#8ab0d0', 
-        fontSize: 10,
+        fontSize: 11,
+        fontWeight: 'normal',
+        fontStyle: 'normal',
         rotate: 30,
-        interval: 0
+        interval: 0,
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif'
       }
     },
     yAxis: {
       type: 'value',
       axisLine: { lineStyle: { color: '#1a3060' } },
       axisTick: { lineStyle: { color: '#1a3060' } },
-      axisLabel: { color: '#8ab0d0', fontSize: 10 },
+      axisLabel: { 
+        color: '#8ab0d0', 
+        fontSize: 11,
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif'
+      },
       splitLine: { 
         lineStyle: { 
           color: 'rgba(26, 48, 96, 0.5)',
