@@ -147,47 +147,39 @@ function renderSchoolChart(alumni) {
   schoolChartInstance.setOption({
     backgroundColor: 'transparent',
     tooltip: {
-      trigger: 'item',
-      formatter: p => `${SCHOOLS[p.dataIndex].name}<br/>校友人数：<b>${p.value[2]}</b>`
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
     },
-    grid3D: {
-      boxWidth: 180, boxDepth: 30, boxHeight: 70,
-      viewControl: { autoRotate: false, distance: 220, alpha: 28, beta: 10, rotateSensitivity: 1 },
-      light: { main: { intensity: 1.3, shadow: true, shadowQuality: 'medium' }, ambient: { intensity: 0.4 } },
-      axisLine: { lineStyle: { color: '#c7d2fe' } },
-      axisPointer: { lineStyle: { color: '#818cf8' } },
-      splitLine: { lineStyle: { color: '#e0e7ff', opacity: 0.8 } }
+    grid: {
+      left: '3%', right: '4%', bottom: '3%', containLabel: true
     },
-    xAxis3D: {
+    xAxis: {
       type: 'category',
       data: labels,
       axisLabel: { color: '#4338ca', fontSize: 10, fontWeight: 'bold' }
     },
-    yAxis3D: { type: 'category', data: [''], axisLabel: { show: false } },
-    zAxis3D: {
-      type: 'value', min: 0,
+    yAxis: {
+      type: 'value',
       axisLabel: { color: '#818cf8', fontSize: 9 }
     },
     series: [{
-      type: 'bar3D',
+      name: '校友人数',
+      type: 'bar',
       data: counts.map((v, i) => ({
-        value: [i, 0, v],
+        value: v,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: colors[i][0] },
             { offset: 1, color: colors[i][1] }
-          ]),
-          opacity: 0.92
+          ])
+        },
+        label: {
+          show: true, position: 'top',
+          formatter: v > 0 ? v : '',
+          textStyle: { color: '#1e1b4b', fontSize: 11, fontWeight: 'bold' }
         }
       })),
-      shading: 'lambert',
-      label: {
-        show: true, position: 'top',
-        formatter: p => p.value[2] > 0 ? p.value[2] : '',
-        textStyle: { color: '#1e1b4b', fontSize: 11, fontWeight: 'bold' }
-      },
-      barSize: 16,
-      emphasis: { itemStyle: { opacity: 1 } }
+      barWidth: '40%'
     }]
   });
 }
