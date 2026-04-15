@@ -682,7 +682,7 @@ function submitPost() {
   const content = $('postContent').value.trim();
   if (!content) { showToast('请输入内容'); return; }
   PostSvc.add({ content, image: postImageData,
-    author: currentUser.name||currentUser.username, authorId: currentUser.id,
+    author: currentUser.name||currentUser.username, author_id: currentUser.id,
     avatar: currentUser.avatar||'', school: currentUser.school||'' });
   $('postContent').value = ''; postImageData = '';
   $('postImagePreview').innerHTML = '';
@@ -721,8 +721,8 @@ async function saveProfile() {
     classname: $('profileClass').value.trim(), job: $('profileJob').value.trim(),
     city: $('profileCity').value.trim(), bio: $('profileBio').value.trim(),
     avatar: profileAvatarData || $('profileAvatarUrl').value.trim() };
-  await UserSvc.update(currentUser.id, data);
-  currentUser = await UserSvc.getById(currentUser.id);
+  await UserSvc.updateProfile(data);
+  currentUser = await UserSvc.getMe();
   profileAvatarData = '';
   showToast('资料已保存'); await renderMePage();
 }

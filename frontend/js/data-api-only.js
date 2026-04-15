@@ -114,6 +114,13 @@ const UserSvc = {
     return result;
   },
   
+  async updateProfile(data) {
+    const result = await apiCall('PUT', '/users/profile', data);
+    this._currentUser = { ...this._currentUser, ...result };
+    clearCache('users');
+    return result;
+  },
+  
   async add(data) {
     const result = await apiCall('POST', '/users', data);
     clearCache('users');

@@ -950,6 +950,102 @@ app.put('/api/users/profile', authenticateToken, (req, res) => {
     );
 });
 
+// 创建用户（管理员权限）
+app.post('/api/users', authenticateToken, (req, res) => {
+    // 检查管理员权限
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json(error('权限不足，需要管理员权限'));
+    }
+    
+    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json(error('用户名和密码不能为空'));
+    }
+    
+    // 检查用户名是否已存在
+    db.get('SELECT id FROM users WHERE username = ?', [username], (err, existingUser) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (existingUser) return res.status(400).json(error('用户名已存在'));
+        
+        const id = 'u' + Date.now();
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        
+        db.run(`INSERT INTO users (id, username, password, name, role, school, level, year, classname, job, city, bio, avatar) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, username, hashedPassword, name || '', role || 'user', school || '', level || '', year || null, classname || '', job || '', city || '', bio || '', avatar || ''],
+            function(err) {
+                if (err) {
+                    console.error('创建用户失败:', err);
+                    return res.status(500).json(error('创建用户失败: ' + err.message));
+                }
+                db.get('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users WHERE id = ?', [id], (err, row) => {
+                    res.json(success(row));
+                });
+            }
+        );
+    });
+});
+
+// 更新用户（管理员权限）
+app.put('/api/users/:id', authenticateToken, (req, res) => {
+    // 检查管理员权限
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json(error('权限不足，需要管理员权限'));
+    }
+    
+    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar } = req.body;
+    
+    // 检查用户是否存在
+    db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, existingUser) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (!existingUser) return res.status(404).json(error('用户不存在', 404));
+        
+        // 构建更新语句
+        let updateSql = 'UPDATE users SET username = ?, name = ?, role = ?, school = ?, level = ?, year = ?, classname = ?, job = ?, city = ?, bio = ?, avatar = ?';
+        let updateParams = [username || existingUser.username, name, role, school, level, year, classname, job, city, bio, avatar];
+        
+        // 如果提供了新密码，则需要加密更新
+        if (password && password.trim() !== '') {
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            updateSql += ', password = ?';
+            updateParams.push(hashedPassword);
+        }
+        
+        updateSql += ' WHERE id = ?';
+        updateParams.push(req.params.id);
+        
+        db.run(updateSql, updateParams, function(err) {
+            if (err) {
+                console.error('更新用户失败:', err);
+                return res.status(500).json(error('更新用户失败'));
+            }
+            db.get('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users WHERE id = ?', [req.params.id], (err, row) => {
+                res.json(success(row));
+            });
+        });
+    });
+});
+
+// 删除用户（管理员权限）
+app.delete('/api/users/:id', authenticateToken, (req, res) => {
+    // 检查管理员权限
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json(error('权限不足，需要管理员权限'));
+    }
+    
+    // 不允许删除自己
+    if (req.params.id === req.user.id) {
+        return res.status(400).json(error('不能删除自己的账户'));
+    }
+    
+    db.run('DELETE FROM users WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json(error('删除用户失败'));
+        if (this.changes === 0) return res.status(404).json(error('用户不存在', 404));
+        res.json(success(null));
+    });
+});
+
 // 首页路由
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
