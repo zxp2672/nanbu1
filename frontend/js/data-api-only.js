@@ -29,6 +29,7 @@ const Perm = {
 // 内存缓存（仅用于减少重复请求）
 const _cache = {
   alumni: null,
+  pendingAlumni: null,
   resources: null,
   activities: null,
   posts: null,
@@ -142,8 +143,11 @@ const AlumniSvc = {
   },
   
   async getPending() {
-    const all = await this.getAll();
-    return all.filter(a => a.status === 'pending');
+    if (!_cache.pendingAlumni || Date.now() - (_cache.lastFetch.pendingAlumni || 0) > 30000) {
+      _cache.pendingAlumni = await apiCall('GET', '/alumni/pending');
+      _cache.lastFetch.pendingAlumni = Date.now();
+    }
+    return _cache.pendingAlumni || [];
   },
   
   async getById(id) {

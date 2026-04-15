@@ -462,15 +462,24 @@ app.get('/api/alumni/:id', (req, res) => {
 });
 
 // 添加校友
-app.post('/api/alumni', (req, res) => {
+// 添加校友（需要登录）
+app.post('/api/alumni', authenticateToken, (req, res) => {
     const id = 'a' + Date.now();
     const { name, school, level, year, classname, phone, job, company, city, bio, avatar, user_id } = req.body;
     
+    if (!name || !school) {
+        return res.status(400).json(error('请填写姓名和学校'));
+    }
+    
     db.run(`INSERT INTO alumni (id, name, school, level, year, classname, phone, job, company, city, bio, avatar, user_id, status) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-        [id, name, school, level, year, classname, phone, job, company, city, bio, avatar, user_id],
+        [id, name, school, level || '', year || '', classname || '', phone || '', job || '', company || '', city || '', bio || '', avatar || '', user_id || req.user.id],
         function(err) {
-            if (err) return res.status(500).json(error('添加失败'));
+            if (err) {
+                console.error('添加校友失败:', err);
+                return res.status(500).json(error('添加失败: ' + err.message));
+            }
+            console.log('✅ 校友添加成功:', id, name, school);
             db.get('SELECT * FROM alumni WHERE id = ?', [id], (err, row) => {
                 res.json(success(row));
             });
