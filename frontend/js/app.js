@@ -7,6 +7,46 @@ let alumniAvatarData = '';
 let profileAvatarData = '';
 let schoolChartInstance = null;
 
+// ===== 认证模块 =====
+const Auth = {
+  isLoggedIn() {
+    return !!currentUser;
+  },
+  requireAuth() {
+    if (!currentUser) {
+      showLoginPrompt();
+      return false;
+    }
+    return true;
+  },
+  requireAdmin() {
+    if (!currentUser) {
+      showLoginPrompt();
+      return false;
+    }
+    if (!Perm.isAnyAdmin(currentUser)) {
+      showToast('需要管理员权限');
+      return false;
+    }
+    return true;
+  }
+};
+
+// 登录提示弹窗
+function showLoginPrompt() {
+  openModal('loginPromptModal');
+}
+
+function closeLoginPrompt() {
+  closeModal('loginPromptModal');
+}
+
+function goLogin() {
+  closeLoginPrompt();
+  $('mainApp').style.display = 'none';
+  $('loginPage').style.display = 'flex';
+}
+
 // ===== 工具函数 =====
 function $(id) { return document.getElementById(id); }
 function showToast(msg, duration = 2000) {
@@ -54,31 +94,47 @@ function resTypeName(t) { return {job:'招聘',project:'项目',invest:'投资',
 function resTypeClass(t) { return 'type-' + t; }
 
 // ===== 启动 =====
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
+window.addEventListener('DOMContentLoaded', async () => {
+  setTimeout(async () => {
     $('splashPage').style.display = 'none';
-    const saved = localStorage.getItem('nb_session');
-    if (saved) {
-      const u = UserSvc.getById(saved);
-      if (u) { currentUser = u; startApp(); return; }
+    const token = localStorage.getItem('nb_token');
+    if (token) {
+      try {
+        // 尝试获取当前用户信息
+        const user = await UserSvc.getMe();
+        if (user) {
+          currentUser = user;
+        }
+      } catch (err) {
+        // Token 无效，清除
+        localStorage.removeItem('nb_token');
+        localStorage.removeItem('nb_session');
+      }
     }
-    $('loginPage').style.display = 'flex';
+    // 游客也可以进入应用
+    startApp();
   }, 2000);
 });
 
 function doLogin() {
   const u = $('loginUser').value.trim(), p = $('loginPass').value;
-  const user = UserSvc.login(u, p);
-  if (!user) { $('loginError').style.display = 'block'; return; }
-  $('loginError').style.display = 'none';
-  currentUser = user;
-  localStorage.setItem('nb_session', user.id);
-  $('loginPage').style.display = 'none';
-  startApp();
+  // 异步登录
+  UserSvc.login(u, p).then(user => {
+    if (!user) { $('loginError').style.display = 'block'; return; }
+    $('loginError').style.display = 'none';
+    currentUser = user;
+    localStorage.setItem('nb_session', user.id);
+    $('loginPage').style.display = 'none';
+    startApp();
+  }).catch(err => {
+    console.error('登录失败:', err);
+    $('loginError').style.display = 'block';
+  });
 }
 
 function doLogout() {
   localStorage.removeItem('nb_session');
+  localStorage.removeItem('nb_token');
   currentUser = null;
   $('mainApp').style.display = 'none';
   $('loginPage').style.display = 'flex';
@@ -97,12 +153,20 @@ async function startApp() {
 
 function applyPermissions() {
   const isAdmin = Perm.isAnyAdmin(currentUser);
+  const isLoggedIn = !!currentUser;
+  
+  // 管理员权限控制
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
   });
   const isSuperAdmin = Perm.isSuperAdmin(currentUser);
   document.querySelectorAll('.superadmin-only').forEach(el => {
     el.style.display = isSuperAdmin ? '' : 'none';
+  });
+  
+  // 登录用户可见的操作按钮（添加校友、发布资源等）
+  document.querySelectorAll('.login-required').forEach(el => {
+    el.style.display = isLoggedIn ? '' : 'none';
   });
 }
 
@@ -319,6 +383,8 @@ function alumniCardHtml(a) {
 }
 
 async function showAlumniDetail(id) {
+  // 游客需要登录才能查看详情
+  if (!Auth.requireAuth()) return;
   const a = await AlumniSvc.getById(id);
   if (!a) return;
   const canManage = Perm.canManageAlumni(currentUser, a);
@@ -547,8 +613,10 @@ function signupRollHtml(signups) {
     </div>
   </div>`;
 }
-function showActivityDetail(id) {
-  const a = ActivitySvc.getById(id);
+async function showActivityDetail(id) {
+  // 游客需要登录才能查看详情
+  if (!Auth.requireAuth()) return;
+  const a = await ActivitySvc.getById(id);
   if (!a) return;
   const status = ActivitySvc.getStatus(a);
   const isSignedUp = (a.signups||[]).find(s => s.userId === currentUser.id);
@@ -638,6 +706,20 @@ function deleteActivity(id) {
 
 // ===== 我的页 =====
 function renderMePage() {
+  const guestPrompt = $('guestPrompt');
+  const meContent = $('meContent');
+  
+  if (!currentUser) {
+    // 游客：显示登录提示
+    if (guestPrompt) guestPrompt.style.display = '';
+    if (meContent) meContent.style.display = 'none';
+    return;
+  }
+  
+  // 已登录：显示用户内容
+  if (guestPrompt) guestPrompt.style.display = 'none';
+  if (meContent) meContent.style.display = '';
+  
   const u = currentUser;
   $('meHero').innerHTML = `
     <div class="me-avatar">${avatarHtml(u.avatar, u.name||u.username, 'me-avatar')}</div>

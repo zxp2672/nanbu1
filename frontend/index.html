@@ -94,7 +94,7 @@
     <div id="page-alumni" class="page">
       <div class="page-topbar">
         <div class="page-topbar-title">校友通讯录</div>
-        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addAlumniModal')">＋</button>
+        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addAlumniModal')" title="添加校友">＋</button>
       </div>
       <div class="filter-cascade" id="filterCascade"></div>
       <div class="search-row">
@@ -107,7 +107,7 @@
     <div id="page-resource" class="page">
       <div class="page-topbar">
         <div class="page-topbar-title">资源共享</div>
-        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addResourceModal')">＋</button>
+        <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addResourceModal')" title="发布资源">＋</button>
       </div>
       <div class="tab-bar">
         <button class="tab-btn active" onclick="switchResTab(this,'all')">全部</button>
@@ -136,66 +136,76 @@
 
     <!-- 我的页 -->
     <div id="page-me" class="page">
-      <div class="me-hero" id="meHero"></div>
-      <div class="me-tabs">
-        <button class="me-tab active" onclick="switchMeTab(this,'posts')">动态</button>
-        <button class="me-tab" onclick="switchMeTab(this,'profile')">资料</button>
-        <button class="me-tab" onclick="switchMeTab(this,'settings')">设置</button>
+      <!-- 游客提示 -->
+      <div id="guestPrompt" style="display:none;padding:40px 20px;text-align:center">
+        <div style="font-size:64px;margin-bottom:16px">👤</div>
+        <h3 style="margin-bottom:8px">欢迎访问校友会</h3>
+        <p style="color:var(--text3);margin-bottom:24px">登录后可查看详情、发布动态、参与活动</p>
+        <button class="btn btn-primary btn-block" onclick="goLogin()" style="max-width:200px;margin:0 auto">登录 / 注册</button>
       </div>
-      <div id="mePostsPanel">
-        <div class="post-compose">
-          <div class="post-compose-row">
-            <div class="feed-avatar" id="composeAvatar"></div>
-            <textarea id="postContent" placeholder="分享你的动态..." rows="3"></textarea>
-          </div>
-          <div class="post-compose-actions">
-            <label class="btn btn-sm btn-secondary">📷 图片<input type="file" accept="image/*" style="display:none" onchange="handlePostImage(this)"></label>
-            <button class="btn btn-sm btn-primary" onclick="submitPost()">发布</button>
-          </div>
-          <div id="postImagePreview"></div>
+      <!-- 已登录用户内容 -->
+      <div id="meContent">
+        <div class="me-hero" id="meHero"></div>
+        <div class="me-tabs">
+          <button class="me-tab active" onclick="switchMeTab(this,'posts')">动态</button>
+          <button class="me-tab" onclick="switchMeTab(this,'profile')">资料</button>
+          <button class="me-tab" onclick="switchMeTab(this,'settings')">设置</button>
         </div>
-        <div id="myPostsList" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px"></div>
-      </div>
-      <div id="meProfilePanel" style="display:none">
-        <div class="profile-form card" style="margin:12px 16px;padding:16px">
-          <div class="avatar-upload-row">
-            <div class="avatar-upload" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">📷</div>
-            <div style="flex:1">
-              <div style="font-size:12px;color:var(--text3);margin-bottom:8px">点击更换头像</div>
-              <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
-              <div class="form-group" style="margin-bottom:0">
-                <label>头像URL（可选）</label>
-                <input type="text" id="profileAvatarUrl" placeholder="https://..." oninput="previewAvatarUrl(this.value)">
+        <div id="mePostsPanel">
+          <div class="post-compose">
+            <div class="post-compose-row">
+              <div class="feed-avatar" id="composeAvatar"></div>
+              <textarea id="postContent" placeholder="分享你的动态..." rows="3"></textarea>
+            </div>
+            <div class="post-compose-actions">
+              <label class="btn btn-sm btn-secondary">📷 图片<input type="file" accept="image/*" style="display:none" onchange="handlePostImage(this)"></label>
+              <button class="btn btn-sm btn-primary" onclick="submitPost()">发布</button>
+            </div>
+            <div id="postImagePreview"></div>
+          </div>
+          <div id="myPostsList" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+        <div id="meProfilePanel" style="display:none">
+          <div class="profile-form card" style="margin:12px 16px;padding:16px">
+            <div class="avatar-upload-row">
+              <div class="avatar-upload" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">📷</div>
+              <div style="flex:1">
+                <div style="font-size:12px;color:var(--text3);margin-bottom:8px">点击更换头像</div>
+                <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
+                <div class="form-group" style="margin-bottom:0">
+                  <label>头像URL（可选）</label>
+                  <input type="text" id="profileAvatarUrl" placeholder="https://..." oninput="previewAvatarUrl(this.value)">
+                </div>
               </div>
             </div>
-          </div>
-          <div class="form-group"><label>昵称</label><input type="text" id="profileName" placeholder="你的昵称"></div>
-          <div class="form-group"><label>学校</label>
-            <select id="profileSchool">
-              <option value="">请选择学校</option>
-              <option>南部中学</option><option>南部二中</option><option>南部三中</option>
-              <option>大桥中学</option><option>东坝中学</option><option>建兴中学</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>学段</label>
-              <select id="profileLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
+            <div class="form-group"><label>昵称</label><input type="text" id="profileName" placeholder="你的昵称"></div>
+            <div class="form-group"><label>学校</label>
+              <select id="profileSchool">
+                <option value="">请选择学校</option>
+                <option>南部中学</option><option>南部二中</option><option>南部三中</option>
+                <option>大桥中学</option><option>东坝中学</option><option>建兴中学</option>
+              </select>
             </div>
-            <div class="form-group"><label>入学年份</label>
-              <input type="number" id="profileYear" placeholder="如 2010" min="1980" max="2030">
+            <div class="form-row">
+              <div class="form-group"><label>学段</label>
+                <select id="profileLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
+              </div>
+              <div class="form-group"><label>入学年份</label>
+                <input type="number" id="profileYear" placeholder="如 2010" min="1980" max="2030">
+              </div>
             </div>
+            <div class="form-group"><label>班级</label><input type="text" id="profileClass" placeholder="如 高三(2)班"></div>
+            <div class="form-group"><label>职业</label><input type="text" id="profileJob" placeholder="职业/公司"></div>
+            <div class="form-group"><label>城市</label><input type="text" id="profileCity" placeholder="现居城市"></div>
+            <div class="form-group"><label>个人简介</label><textarea id="profileBio" rows="3" placeholder="介绍一下自己..."></textarea></div>
+            <button class="btn btn-primary btn-block" onclick="saveProfile()">保存资料</button>
           </div>
-          <div class="form-group"><label>班级</label><input type="text" id="profileClass" placeholder="如 高三(2)班"></div>
-          <div class="form-group"><label>职业</label><input type="text" id="profileJob" placeholder="职业/公司"></div>
-          <div class="form-group"><label>城市</label><input type="text" id="profileCity" placeholder="现居城市"></div>
-          <div class="form-group"><label>个人简介</label><textarea id="profileBio" rows="3" placeholder="介绍一下自己..."></textarea></div>
-          <button class="btn btn-primary btn-block" onclick="saveProfile()">保存资料</button>
         </div>
-      </div>
-      <div id="meSettingsPanel" style="display:none">
-        <div class="settings-list">
-          <div class="settings-item" onclick="doLogout()"><span>🚪</span><span>退出登录</span><span>›</span></div>
-          <div class="settings-item admin-only" onclick="navigateTo('admin')"><span>⚙️</span><span>系统管理</span><span>›</span></div>
+        <div id="meSettingsPanel" style="display:none">
+          <div class="settings-list">
+            <div class="settings-item" onclick="doLogout()"><span>🚪</span><span>退出登录</span><span>›</span></div>
+            <div class="settings-item admin-only" onclick="navigateTo('admin')"><span>⚙️</span><span>系统管理</span><span>›</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -424,6 +434,22 @@
 
 <!-- Toast -->
 <div id="toast" class="toast"></div>
+
+<!-- 登录提示弹窗 -->
+<div id="loginPromptModal" class="modal">
+  <div class="modal-content modal-center" style="width:320px">
+    <div class="modal-header"><h3>🔒 请先登录</h3></div>
+    <div class="modal-body" style="text-align:center;padding:20px">
+      <div style="font-size:48px;margin-bottom:16px">🔐</div>
+      <p style="color:var(--text2);margin-bottom:8px">此功能需要登录后才能使用</p>
+      <p style="color:var(--text3);font-size:13px">登录后可查看详情、发布内容、参与活动</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;gap:12px">
+      <button class="btn btn-secondary" onclick="closeLoginPrompt()">继续浏览</button>
+      <button class="btn btn-primary" onclick="goLogin()">去登录</button>
+    </div>
+  </div>
+</div>
 
 <script src="js/api.js"></script>
 <script src="js/data-api-only.js"></script>
