@@ -463,7 +463,7 @@ async function renderResourceList() {
   }
 }
 function resourceCardHtml(r) {
-  const canDel = currentUser && (r.authorId === currentUser.id || Perm.isSuperAdmin(currentUser));
+  const canDel = currentUser && (r.author_id === currentUser.id || Perm.isSuperAdmin(currentUser));
   return `<div class="resource-card">
     <div class="resource-header">
       <span class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</span>
@@ -678,15 +678,19 @@ async function renderMyPosts() {
       </div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-state-icon">📭</div><p>还没有发布动态</p></div>';
 }
-function submitPost() {
+async function submitPost() {
   const content = $('postContent').value.trim();
   if (!content) { showToast('请输入内容'); return; }
-  PostSvc.add({ content, image: postImageData,
-    author: currentUser.name||currentUser.username, author_id: currentUser.id,
-    avatar: currentUser.avatar||'', school: currentUser.school||'' });
-  $('postContent').value = ''; postImageData = '';
-  $('postImagePreview').innerHTML = '';
-  showToast('发布成功'); renderMyPosts(); renderHomeFeed();
+  try {
+    await PostSvc.add({ content, image: postImageData,
+      author: currentUser.name||currentUser.username, author_id: currentUser.id,
+      avatar: currentUser.avatar||'', school: currentUser.school||'' });
+    $('postContent').value = ''; postImageData = '';
+    $('postImagePreview').innerHTML = '';
+    showToast('发布成功'); renderMyPosts(); renderHomeFeed();
+  } catch (e) {
+    showToast('发布失败: ' + (e.message || '请检查网络'));
+  }
 }
 function handlePostImage(input) {
   const file = input.files[0]; if (!file) return;
@@ -716,15 +720,19 @@ function loadProfileForm() {
   else { prev.textContent = '📷'; }
 }
 async function saveProfile() {
-  const data = { name: $('profileName').value.trim(), school: $('profileSchool').value,
-    level: $('profileLevel').value, year: parseInt($('profileYear').value)||'',
-    classname: $('profileClass').value.trim(), job: $('profileJob').value.trim(),
-    city: $('profileCity').value.trim(), bio: $('profileBio').value.trim(),
-    avatar: profileAvatarData || $('profileAvatarUrl').value.trim() };
-  await UserSvc.updateProfile(data);
-  currentUser = await UserSvc.getMe();
-  profileAvatarData = '';
-  showToast('资料已保存'); await renderMePage();
+  try {
+    const data = { name: $('profileName').value.trim(), school: $('profileSchool').value,
+      level: $('profileLevel').value, year: parseInt($('profileYear').value)||'',
+      classname: $('profileClass').value.trim(), job: $('profileJob').value.trim(),
+      city: $('profileCity').value.trim(), bio: $('profileBio').value.trim(),
+      avatar: profileAvatarData || $('profileAvatarUrl').value.trim() };
+    await UserSvc.updateProfile(data);
+    currentUser = await UserSvc.getMe();
+    profileAvatarData = '';
+    showToast('资料已保存'); await renderMePage();
+  } catch (e) {
+    showToast('保存失败: ' + (e.message || '请检查网络'));
+  }
 }
 function handleAvatarChange(input) {
   const file = input.files[0]; if (!file) return;
@@ -853,24 +861,28 @@ function renderAdminScopeFields(scope) {
   $('adminScopeFields').innerHTML = html;
 }
 async function saveUser() {
-  const username = $('uUsername').value.trim(), role = $('uRole').value;
-  if (!username) { showToast('请填写用户名'); return; }
-  const editId = $('editUserId').value;
-  const scope = {};
-  const ss = $('scopeSchool'); if (ss) scope.school = ss.value;
-  const sl = $('scopeLevel'); if (sl) scope.level = sl.value;
-  const sy = $('scopeYear'); if (sy) scope.year = parseInt(sy.value)||'';
-  const sc = $('scopeClass'); if (sc) scope.classname = sc.value.trim();
-  const data = { username, role, name: $('uName').value.trim(), adminScope: scope };
-  const pw = $('uPassword').value;
-  if (pw) data.password = pw;
-  if (editId) { await UserSvc.update(editId, data); showToast('已更新'); }
-  else {
-    if (!pw) { showToast('请填写密码'); return; }
-    await UserSvc.add(data); showToast('用户已添加');
+  try {
+    const username = $('uUsername').value.trim(), role = $('uRole').value;
+    if (!username) { showToast('请填写用户名'); return; }
+    const editId = $('editUserId').value;
+    const scope = {};
+    const ss = $('scopeSchool'); if (ss) scope.school = ss.value;
+    const sl = $('scopeLevel'); if (sl) scope.level = sl.value;
+    const sy = $('scopeYear'); if (sy) scope.year = parseInt(sy.value)||'';
+    const sc = $('scopeClass'); if (sc) scope.classname = sc.value.trim();
+    const data = { username, role, name: $('uName').value.trim(), adminScope: scope };
+    const pw = $('uPassword').value;
+    if (pw) data.password = pw;
+    if (editId) { await UserSvc.update(editId, data); showToast('已更新'); }
+    else {
+      if (!pw) { showToast('请填写密码'); return; }
+      await UserSvc.add(data); showToast('用户已添加');
+    }
+    closeModal('addUserModal');
+    await renderAdminUsers();
+  } catch (e) {
+    showToast('保存失败: ' + (e.message || '请检查网络'));
   }
-  closeModal('addUserModal');
-  await renderAdminUsers();
 }
 function deleteUser(id) {
   confirm('确定删除该用户？', async () => { await UserSvc.delete(id); await renderAdminUsers(); showToast('已删除'); });

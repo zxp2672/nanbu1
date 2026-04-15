@@ -13,7 +13,8 @@ const JWT_SECRET = 'nanbu-alumni-secret-key-2024';
 
 // 中间件
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -957,7 +958,7 @@ app.post('/api/users', authenticateToken, (req, res) => {
         return res.status(403).json(error('权限不足，需要管理员权限'));
     }
     
-    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar } = req.body;
+    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar, adminScope } = req.body;
     
     if (!username || !password) {
         return res.status(400).json(error('用户名和密码不能为空'));
@@ -971,9 +972,27 @@ app.post('/api/users', authenticateToken, (req, res) => {
         const id = 'u' + Date.now();
         const hashedPassword = bcrypt.hashSync(password, 10);
         
+        // 如果提供了 adminScope，提取其中的字段
+        let finalSchool = school || '';
+        let finalLevel = level || '';
+        let finalYear = year || null;
+        let finalClassname = classname || '';
+        
+        if (adminScope) {
+            try {
+                const scope = typeof adminScope === 'string' ? JSON.parse(adminScope) : adminScope;
+                finalSchool = scope.school || finalSchool;
+                finalLevel = scope.level || finalLevel;
+                finalYear = scope.year || finalYear;
+                finalClassname = scope.classname || finalClassname;
+            } catch (e) {
+                console.error('解析 adminScope 失败:', e);
+            }
+        }
+        
         db.run(`INSERT INTO users (id, username, password, name, role, school, level, year, classname, job, city, bio, avatar) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, username, hashedPassword, name || '', role || 'user', school || '', level || '', year || null, classname || '', job || '', city || '', bio || '', avatar || ''],
+            [id, username, hashedPassword, name || '', role || 'user', finalSchool, finalLevel, finalYear, finalClassname, job || '', city || '', bio || '', avatar || ''],
             function(err) {
                 if (err) {
                     console.error('创建用户失败:', err);
@@ -994,16 +1013,34 @@ app.put('/api/users/:id', authenticateToken, (req, res) => {
         return res.status(403).json(error('权限不足，需要管理员权限'));
     }
     
-    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar } = req.body;
+    const { username, password, name, school, role, level, year, classname, job, city, bio, avatar, adminScope } = req.body;
     
     // 检查用户是否存在
     db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, existingUser) => {
         if (err) return res.status(500).json(error('服务器错误'));
         if (!existingUser) return res.status(404).json(error('用户不存在', 404));
         
+        // 如果提供了 adminScope，提取其中的字段
+        let finalSchool = school;
+        let finalLevel = level;
+        let finalYear = year;
+        let finalClassname = classname;
+        
+        if (adminScope) {
+            try {
+                const scope = typeof adminScope === 'string' ? JSON.parse(adminScope) : adminScope;
+                finalSchool = scope.school || finalSchool;
+                finalLevel = scope.level || finalLevel;
+                finalYear = scope.year || finalYear;
+                finalClassname = scope.classname || finalClassname;
+            } catch (e) {
+                console.error('解析 adminScope 失败:', e);
+            }
+        }
+        
         // 构建更新语句
         let updateSql = 'UPDATE users SET username = ?, name = ?, role = ?, school = ?, level = ?, year = ?, classname = ?, job = ?, city = ?, bio = ?, avatar = ?';
-        let updateParams = [username || existingUser.username, name, role, school, level, year, classname, job, city, bio, avatar];
+        let updateParams = [username || existingUser.username, name, role, finalSchool, finalLevel, finalYear, finalClassname, job, city, bio, avatar];
         
         // 如果提供了新密码，则需要加密更新
         if (password && password.trim() !== '') {

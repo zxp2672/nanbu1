@@ -62,8 +62,15 @@ async function apiCall(method, endpoint, body = null) {
   if (body) options.body = JSON.stringify(body);
   
   const response = await fetch('/api' + endpoint, options);
-  const data = await response.json();
   
+  if (!response.ok) {
+    if (response.status === 413) throw new Error('数据过大，请压缩图片后重试');
+    if (response.status === 401) throw new Error('登录已过期，请重新登录');
+    if (response.status === 403) throw new Error('没有操作权限');
+    throw new Error('请求失败 (' + response.status + ')');
+  }
+  
+  const data = await response.json();
   if (data.code !== 200) throw new Error(data.message || '请求失败');
   return data.data;
 }
