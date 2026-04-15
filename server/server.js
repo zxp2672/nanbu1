@@ -683,10 +683,10 @@ app.post('/api/resources', authenticateToken, (req, res) => {
 
 // 更新资源
 app.put('/api/resources/:id', authenticateToken, (req, res) => {
-    const { title, type, description, contact } = req.body;
+    const { title, type, description, contact, author, author_id } = req.body;
     
-    db.run(`UPDATE resources SET title = ?, type = ?, description = ?, contact = ? WHERE id = ?`,
-        [title, type, description, contact, req.params.id],
+    db.run(`UPDATE resources SET title = ?, type = ?, description = ?, contact = ?, author = ?, author_id = ? WHERE id = ?`,
+        [title, type, description, contact, author, author_id, req.params.id],
         function(err) {
             if (err) return res.status(500).json(error('更新失败'));
             db.get('SELECT * FROM resources WHERE id = ?', [req.params.id], (err, row) => {
@@ -791,10 +791,10 @@ app.post('/api/activities', authenticateToken, (req, res) => {
 
 // 更新活动
 app.put('/api/activities/:id', authenticateToken, (req, res) => {
-    const { name, start_time, end_time, location, capacity, description } = req.body;
+    const { name, start_time, end_time, location, capacity, description, organizer_name, organizer_id } = req.body;
     
-    db.run(`UPDATE activities SET name = ?, start_time = ?, end_time = ?, location = ?, capacity = ?, description = ? WHERE id = ?`,
-        [name, start_time, end_time, location, capacity, description, req.params.id],
+    db.run(`UPDATE activities SET name = ?, start_time = ?, end_time = ?, location = ?, capacity = ?, description = ?, organizer_name = ?, organizer_id = ? WHERE id = ?`,
+        [name, start_time, end_time, location, capacity, description, organizer_name, organizer_id, req.params.id],
         function(err) {
             if (err) return res.status(500).json(error('更新失败'));
             db.get('SELECT * FROM activities WHERE id = ?', [req.params.id], (err, row) => {
