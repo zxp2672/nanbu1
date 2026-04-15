@@ -419,16 +419,21 @@ async function saveAlumni() {
     classname: $('aClass').value.trim(), phone: $('aPhone').value.trim(),
     job: $('aJob').value.trim(), company: $('aCompany').value.trim(),
     city: $('aCity').value.trim(), bio: $('aBio').value.trim(), avatar,
-    userId: currentUser.id };
+    user_id: currentUser.id };
   const editId = $('editAlumniId').value;
-  if (editId) {
-    await AlumniSvc.update(editId, data); showToast('已更新');
-  } else {
-    await AlumniSvc.add(data); showToast('已提交，等待审核');
+  try {
+    if (editId) {
+      await AlumniSvc.update(editId, data); showToast('已更新');
+    } else {
+      await AlumniSvc.add(data); showToast('已提交，等待审核');
+    }
+    alumniAvatarData = '';
+    closeModal('addAlumniModal');
+    await renderAlumniList(); await renderAdminPage();
+  } catch (e) {
+    console.error('保存失败:', e);
+    showToast('保存失败: ' + (e.message || '请检查网络'));
   }
-  alumniAvatarData = '';
-  closeModal('addAlumniModal');
-  await renderAlumniList(); await renderAdminPage();
 }
 
 function previewAlumniAvatar(url) {
@@ -476,13 +481,18 @@ async function saveResource() {
   const title = $('rTitle').value.trim(), desc = $('rDesc').value.trim();
   if (!title || !desc) { showToast('请填写标题和描述'); return; }
   const editId = $('editResId').value;
-  const data = { title, type: $('rType').value, desc, contact: $('rContact').value.trim(),
-    author: currentUser.name || currentUser.username, authorId: currentUser.id };
-  if (editId) { await ResourceSvc.update(editId, data); showToast('已更新'); }
-  else { await ResourceSvc.add(data); showToast('发布成功'); }
-  closeModal('addResourceModal');
-  $('rTitle').value=''; $('rDesc').value=''; $('rContact').value=''; $('editResId').value='';
-  await renderResourceList();
+  const data = { title, type: $('rType').value, description: desc, contact: $('rContact').value.trim(),
+    author: currentUser.name || currentUser.username, author_id: currentUser.id };
+  try {
+    if (editId) { await ResourceSvc.update(editId, data); showToast('已更新'); }
+    else { await ResourceSvc.add(data); showToast('发布成功'); }
+    closeModal('addResourceModal');
+    $('rTitle').value=''; $('rDesc').value=''; $('rContact').value=''; $('editResId').value='';
+    await renderResourceList();
+  } catch (e) {
+    console.error('保存失败:', e);
+    showToast('保存失败: ' + (e.message || '请检查网络'));
+  }
 }
 function deleteResource(id) {
   confirm('确定删除该资源？', async () => { await ResourceSvc.delete(id); await renderResourceList(); showToast('已删除'); });
@@ -591,13 +601,20 @@ async function saveActivity() {
   const editId = $('editActId').value;
   const data = { name, start_time: $('actStart').value, end_time: $('actEnd').value,
     location: $('actLocation').value.trim(), capacity: parseInt($('actCapacity').value)||0,
-    description: $('actDesc').value.trim() };
-  if (editId) { await ActivitySvc.update(editId, data); showToast('已更新'); }
-  else { await ActivitySvc.add(data); showToast('活动已发布'); }
-  closeModal('addActivityModal');
-  $('actName').value=''; $('actStart').value=''; $('actEnd').value='';
-  $('actLocation').value=''; $('actCapacity').value=''; $('actDesc').value=''; $('editActId').value='';
-  await renderActivityList();
+    description: $('actDesc').value.trim(),
+    organizer_name: currentUser.name || currentUser.username,
+    organizer_id: currentUser.id };
+  try {
+    if (editId) { await ActivitySvc.update(editId, data); showToast('已更新'); }
+    else { await ActivitySvc.add(data); showToast('活动已发布'); }
+    closeModal('addActivityModal');
+    $('actName').value=''; $('actStart').value=''; $('actEnd').value='';
+    $('actLocation').value=''; $('actCapacity').value=''; $('actDesc').value=''; $('editActId').value='';
+    await renderActivityList();
+  } catch (e) {
+    console.error('保存失败:', e);
+    showToast('保存失败: ' + (e.message || '请检查网络'));
+  }
 }
 async function editActivity(id) {
   const a = await ActivitySvc.getById(id); if (!a) return;
