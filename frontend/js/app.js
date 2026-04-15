@@ -95,25 +95,33 @@ function resTypeClass(t) { return 'type-' + t; }
 
 // ===== 启动 =====
 window.addEventListener('DOMContentLoaded', async () => {
-  setTimeout(async () => {
-    $('splashPage').style.display = 'none';
-    const token = localStorage.getItem('nb_token');
-    if (token) {
-      try {
-        // 尝试获取当前用户信息
-        const user = await UserSvc.getMe();
-        if (user) {
-          currentUser = user;
-        }
-      } catch (err) {
-        // Token 无效，清除
-        localStorage.removeItem('nb_token');
-        localStorage.removeItem('nb_session');
+  const startTime = Date.now();
+  const minDisplayTime = 500; // 最小显示时间 500ms
+
+  const token = localStorage.getItem('nb_token');
+  if (token) {
+    try {
+      // 尝试获取当前用户信息
+      const user = await UserSvc.getMe();
+      if (user) {
+        currentUser = user;
       }
+    } catch (err) {
+      // Token 无效，清除
+      localStorage.removeItem('nb_token');
+      localStorage.removeItem('nb_session');
     }
-    // 游客也可以进入应用
-    startApp();
-  }, 2000);
+  }
+
+  // 游客也可以进入应用
+  await startApp();
+
+  // 确保最小显示时间
+  const elapsed = Date.now() - startTime;
+  if (elapsed < minDisplayTime) {
+    await new Promise(r => setTimeout(r, minDisplayTime - elapsed));
+  }
+  $('splashPage').style.display = 'none';
 });
 
 function doLogin() {
@@ -186,15 +194,19 @@ async function navigateTo(page) {
 // ===== 首页 =====
 async function renderHomePage() {
   try {
-    const alumni = await AlumniSvc.getApproved();
-    const activities = await ActivitySvc.getAll();
-    const resources = await ResourceSvc.getAll();
+    // 并行获取数据
+    const [alumni, activities, resources, posts] = await Promise.all([
+      AlumniSvc.getApproved(),
+      ActivitySvc.getAll(),
+      ResourceSvc.getAll(),
+      PostSvc.getAll()
+    ]);
     animateNum($('statAlumni'), alumni.length || 0);
     animateNum($('statActivities'), activities.length || 0);
     animateNum($('statResources'), resources.length || 0);
     renderSchoolChart(alumni);
     renderSchoolsList(alumni);
-    await renderHomeFeed();
+    renderHomeFeedWithData(posts);
   } catch (e) {
     console.error('渲染首页失败:', e);
     // 显示默认值
@@ -277,11 +289,16 @@ function filterBySchool(name) {
 async function renderHomeFeed() {
   try {
     const posts = (await PostSvc.getAll()).slice(0, 5);
-    $('homeFeed').innerHTML = posts.length ? posts.map(p => feedItemHtml(p)).join('') :
-      '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>';
+    renderHomeFeedWithData(posts);
   } catch (e) {
     $('homeFeed').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>加载失败</p></div>';
   }
+}
+
+function renderHomeFeedWithData(posts) {
+  const sliced = posts.slice(0, 5);
+  $('homeFeed').innerHTML = sliced.length ? sliced.map(p => feedItemHtml(p)).join('') :
+    '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>';
 }
 
 function feedItemHtml(p) {

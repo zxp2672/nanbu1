@@ -374,5 +374,13 @@ async function initApp() {
   }
 }
 
+// DataStore 对象（兼容 app.js 中的 resetData 调用）
+const DataStore = {
+  reset() {
+    clearCache();
+    console.log('数据缓存已重置');
+  }
+};
+
 // 启动初始化
 initApp();
