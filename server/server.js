@@ -12,8 +12,28 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'nanbu-alumni-secret-key-2024';
 
-// 中间件
-app.use(cors());
+// 中间件 - CORS配置（支持微信浏览器）
+app.use(cors({
+  origin: true, // 允许所有来源
+  credentials: true, // 允许携带cookie
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// 微信浏览器兼容：添加必要的响应头
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // 处理OPTIONS预检请求
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(compression());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

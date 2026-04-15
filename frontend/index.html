@@ -447,6 +447,43 @@
   </div>
 </div>
 
+<!-- 微信浏览器兼容性检测 -->
+<script>
+// 检测微信浏览器
+const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+if (isWechat) {
+  console.log('检测到微信浏览器');
+  document.body.classList.add('wechat-browser');
+  
+  // 微信浏览器兼容性提示
+  if (window.innerWidth < 768) {
+    console.log('微信内置浏览器 - 移动端');
+  }
+}
+
+// 检测localStorage可用性
+function checkLocalStorage() {
+  try {
+    localStorage.setItem('test', 'test');
+    localStorage.removeItem('test');
+    return true;
+  } catch (e) {
+    console.warn('localStorage不可用:', e);
+    return false;
+  }
+}
+
+// 页面加载完成后的初始化
+window.addEventListener('DOMContentLoaded', function() {
+  const storageOk = checkLocalStorage();
+  console.log('localStorage状态:', storageOk ? '正常' : '不可用');
+  
+  if (!storageOk) {
+    alert('您的浏览器不支持本地存储，部分功能可能无法正常使用。建议使用Chrome或Safari浏览器访问。');
+  }
+});
+</script>
+
 <script src="js/api.js"></script>
 <script src="js/data-api-only.js"></script>
 <script src="js/app.js"></script>

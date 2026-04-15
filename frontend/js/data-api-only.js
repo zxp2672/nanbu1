@@ -52,27 +52,45 @@ function clearCache(key) {
   }
 }
 
-// API请求封装
+// API请求封装（微信浏览器兼容）
 async function apiCall(method, endpoint, body = null) {
   const token = localStorage.getItem('nb_token');
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest' // 微信浏览器兼容
+  };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   
-  const options = { method, headers };
+  const options = {
+    method,
+    headers,
+    credentials: 'same-origin', // 微信浏览器兼容
+    cache: 'no-cache' // 防止缓存
+  };
   if (body) options.body = JSON.stringify(body);
   
-  const response = await fetch('/api' + endpoint, options);
-  
-  if (!response.ok) {
-    if (response.status === 413) throw new Error('数据过大，请压缩图片后重试');
-    if (response.status === 401) throw new Error('登录已过期，请重新登录');
-    if (response.status === 403) throw new Error('没有操作权限');
-    throw new Error('请求失败 (' + response.status + ')');
+  try {
+    const response = await fetch('/api' + endpoint, options);
+    
+    if (!response.ok) {
+      if (response.status === 413) throw new Error('数据过大，请压缩图片后重试');
+      if (response.status === 401) throw new Error('登录已过期，请重新登录');
+      if (response.status === 403) throw new Error('没有操作权限');
+      throw new Error('请求失败 (' + response.status + ')');
+    }
+    
+    const data = await response.json();
+    if (data.code !== 200) throw new Error(data.message || '请求失败');
+    return data.data;
+  } catch (error) {
+    console.error('API调用失败:', error);
+    // 微信浏览器特殊错误处理
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      throw new Error('网络连接失败，请检查网络后重试');
+    }
+    throw error;
   }
-  
-  const data = await response.json();
-  if (data.code !== 200) throw new Error(data.message || '请求失败');
-  return data.data;
 }
 
 // 用户服务
