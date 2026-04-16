@@ -49,8 +49,8 @@
 
 <!-- 主应用 -->
 <div id="mainApp" class="main-app" style="display:none">
-  <!-- 粒子背景容器 -->
-  <div id="particles-js" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none"></div>
+  <!-- 粒子背景容器（已禁用） -->
+  <div id="particles-js" style="display:none"></div>
   <div class="app-body" style="position:relative;z-index:1">
 
     <!-- 下拉刷新指示器 -->
@@ -240,7 +240,7 @@
       <div id="guestPrompt" style="display:none;padding:40px 20px;text-align:center">
         <div style="font-size:64px;margin-bottom:16px">👤</div>
         <h3 style="margin-bottom:8px">欢迎访问校友会</h3>
-        <p style="color:var(--text3);margin-bottom:24px">登录后可查看详情、发布动态、参与活动</p>
+        <p style="color:var(--text-muted);margin-bottom:24px">登录后可查看详情、发布动态、参与活动</p>
         <button class="btn btn-primary btn-block" onclick="goLogin()" style="max-width:200px;margin:0 auto">登录 / 注册</button>
       </div>
       <!-- 已登录用户内容 -->
@@ -270,7 +270,7 @@
             <div class="avatar-upload-row">
               <div class="avatar-upload" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">📷</div>
               <div style="flex:1">
-                <div style="font-size:12px;color:var(--text3);margin-bottom:8px">点击更换头像</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">点击更换头像</div>
                 <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
                 <div class="form-group" style="margin-bottom:0">
                   <label>头像URL（可选）</label>
@@ -369,7 +369,7 @@
 <div id="confirmModal" class="modal">
   <div class="modal-content modal-center" style="width:300px">
     <div class="modal-header"><h3>确认操作</h3></div>
-    <div class="modal-body"><p id="confirmMsg" style="color:var(--text2)"></p></div>
+    <div class="modal-body"><p id="confirmMsg" style="color:var(--text-secondary)"></p></div>
     <div class="modal-footer">
       <button class="btn btn-secondary btn-sm" onclick="closeModal('confirmModal')">取消</button>
       <button class="btn btn-danger btn-sm" id="confirmOk">确认</button>
@@ -389,11 +389,11 @@
       <div class="form-group">
         <label>头像URL（可选）</label>
         <div class="avatar-input-row">
-          <div class="avatar-preview-small" id="alumniAvatarPreview" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>
+          <div class="avatar-preview-small" id="alumniAvatarPreview" style="width:40px;height:40px;border-radius:50%;background:#f1f3f5;border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>
           <input type="text" id="aAvatarUrl" placeholder="https://... 或留空" oninput="previewAlumniAvatar(this.value)" style="flex:1">
         </div>
         <div style="margin-top:6px">
-          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text3)">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-muted)">
             <span>或上传本地图片：</span>
             <input type="file" id="aAvatarFile" accept="image/*" style="display:none" onchange="handleAlumniAvatarFile(this)">
             <span class="btn btn-sm btn-secondary" onclick="document.getElementById('aAvatarFile').click()">选择文件</span>
@@ -541,8 +541,8 @@
     <div class="modal-header"><h3>🔒 请先登录</h3></div>
     <div class="modal-body" style="text-align:center;padding:20px">
       <div style="font-size:48px;margin-bottom:16px">🔐</div>
-      <p style="color:var(--text2);margin-bottom:8px">此功能需要登录后才能使用</p>
-      <p style="color:var(--text3);font-size:13px">登录后可查看详情、发布内容、参与活动</p>
+      <p style="color:var(--text-secondary);margin-bottom:8px">此功能需要登录后才能使用</p>
+      <p style="color:var(--text-muted);font-size:13px">登录后可查看详情、发布内容、参与活动</p>
     </div>
     <div class="modal-footer" style="justify-content:center;gap:12px">
       <button class="btn btn-secondary" onclick="closeLoginPrompt()">继续浏览</button>

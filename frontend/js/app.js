@@ -540,7 +540,7 @@ async function showAlumniDetail(id) {
           ${a.level?`<span class="alumni-tag">${a.level}</span>`:''}
           ${a.year?`<span class="alumni-tag">${a.year}届</span>`:''}
           ${a.classname?`<span class="alumni-tag">${a.classname}</span>`:''}
-          ${a.status==='pending'?`<span class="alumni-tag" style="color:var(--warn)">待审核</span>`:''}
+          ${a.status==='pending'?`<span class="alumni-tag" style="color:var(--warning)">待审核</span>`:''}
         </div>
       </div>
     </div>
@@ -834,7 +834,7 @@ function signupRollHtml(signups) {
         <div class="signup-avatar-img">${s.avatar?`<img src="${s.avatar}" alt="">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">${(s.name||'?')[0]}</div>`}</div>
         <div class="signup-avatar-name">${i===0?'👑'+s.name:s.name}</div>
       </div>`).join('')}
-      ${signups.length>12?`<div class="signup-avatar-item"><div class="signup-avatar-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)">+${signups.length-12}</div></div>`:''}
+      ${signups.length>12?`<div class="signup-avatar-item"><div class="signup-avatar-img" style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted)">+${signups.length-12}</div></div>`:''}
     </div>
   </div>`;
 }
@@ -848,7 +848,7 @@ async function showActivityDetail(id) {
   const isFull = a.capacity > 0 && (a.signups||[]).length >= a.capacity;
   $('activityDetailBody').innerHTML = `
     <div style="margin-bottom:12px">
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:12px">${a.name}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:12px">${a.name}</div>
       <div class="activity-info">
         <div class="activity-info-row"><span>🕐</span><span>${fmtDateTime(a.startTime)}${a.endTime?' ~ '+fmtDateTime(a.endTime):''}</span></div>
         <div class="activity-info-row"><span>📍</span><span>${a.location||'待定'}</span></div>
