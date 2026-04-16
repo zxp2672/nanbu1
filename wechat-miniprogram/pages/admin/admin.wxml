@@ -1,0 +1,156 @@
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">管理后台</text>
+    <view class="current-role" wx:if="{{userInfo}}">
+      <text class="role-label">当前身份：</text>
+      <text class="role-value" style="color: {{roleColors[userInfo.role]}};">{{roleNames[userInfo.role]}}</text>
+    </view>
+  </view>
+
+  <!-- Tab切换栏 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" data-tab="pending" bindtap="switchTab">
+      <text>待审核</text>
+      <view class="tab-badge" wx:if="{{pendingList.length > 0}}">{{pendingList.length}}</view>
+      <view class="tab-indicator" wx:if="{{activeTab === 'pending'}}"></view>
+    </view>
+    <view class="tab-item {{activeTab === 'alumni' ? 'active' : ''}}" data-tab="alumni" bindtap="switchTab">
+      <text>校友管理</text>
+      <view class="tab-indicator" wx:if="{{activeTab === 'alumni'}}"></view>
+    </view>
+    <view class="tab-item {{activeTab === 'users' ? 'active' : ''}}" wx:if="{{isSuperAdmin}}" data-tab="users" bindtap="switchTab">
+      <text>用户管理</text>
+      <view class="tab-indicator" wx:if="{{activeTab === 'users'}}"></view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 待审核Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'pending' && !loading}}">
+    <view class="section-title">
+      <text>待审核校友</text>
+      <text class="count">({{pendingList.length}})</text>
+    </view>
+    
+    <block wx:if="{{pendingList.length > 0}}">
+      <view class="review-card" wx:for="{{pendingList}}" wx:key="id">
+        <view class="review-header">
+          <view class="review-info">
+            <text class="review-name">{{item.name}}</text>
+            <view class="review-tags">
+              <text class="review-tag school">{{item.school}}</text>
+              <text class="review-tag">{{item.level}}</text>
+              <text class="review-tag">{{item.year}}年</text>
+              <text class="review-tag" wx:if="{{item.className}}">{{item.className}}班</text>
+            </view>
+          </view>
+        </view>
+        
+        <view class="review-details" wx:if="{{item.job || item.city}}">
+          <text class="detail-item" wx:if="{{item.job}}">💼 {{item.job}}</text>
+          <text class="detail-item" wx:if="{{item.city}}">📍 {{item.city}}</text>
+        </view>
+        
+        <view class="review-actions">
+          <button class="btn btn-success btn-sm" data-id="{{item.id}}" bindtap="approveAlumni">
+            <text class="btn-icon">✓</text>
+            <text>通过</text>
+          </button>
+          <button class="btn btn-danger btn-sm" data-id="{{item.id}}" bindtap="rejectAlumni">
+            <text class="btn-icon">✗</text>
+            <text>拒绝</text>
+          </button>
+        </view>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:if="{{pendingList.length === 0}}">
+      <text class="empty-icon">✓</text>
+      <text class="empty-text">暂无待审核校友</text>
+    </view>
+  </view>
+
+  <!-- 校友管理Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'alumni' && !loading}}">
+    <view class="section-title">
+      <text>校友列表</text>
+      <text class="count">({{alumniList.length}})</text>
+    </view>
+    
+    <block wx:if="{{alumniList.length > 0}}">
+      <view class="list-table">
+        <view class="table-header">
+          <text class="col-name">姓名</text>
+          <text class="col-school">学校</text>
+          <text class="col-job">职业</text>
+          <text class="col-status">状态</text>
+          <text class="col-action">操作</text>
+        </view>
+        <view class="table-row" wx:for="{{alumniList}}" wx:key="id">
+          <text class="col-name">{{item.name}}</text>
+          <text class="col-school">{{item.school}}</text>
+          <text class="col-job">{{item.job || '-'}}</text>
+          <view class="col-status">
+            <text class="status-tag" style="background-color: {{getStatusStyle(item.status).bg}}; color: {{getStatusStyle(item.status).color}};">
+              {{item.status === 'approved' ? '已通过' : item.status === 'pending' ? '待审核' : '已拒绝'}}
+            </text>
+          </view>
+          <view class="col-action">
+            <text class="delete-link" data-id="{{item.id}}" bindtap="deleteAlumni">删除</text>
+          </view>
+        </view>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:if="{{alumniList.length === 0}}">
+      <text class="empty-icon">👥</text>
+      <text class="empty-text">暂无校友数据</text>
+    </view>
+  </view>
+
+  <!-- 用户管理Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'users' && !loading && isSuperAdmin}}">
+    <view class="section-title">
+      <text>用户列表</text>
+      <text class="count">({{userList.length}})</text>
+    </view>
+    
+    <block wx:if="{{userList.length > 0}}">
+      <view class="list-table">
+        <view class="table-header">
+          <text class="col-username">用户名</text>
+          <text class="col-nickname">昵称</text>
+          <text class="col-role">角色</text>
+          <text class="col-school">学校</text>
+          <text class="col-action">操作</text>
+        </view>
+        <view class="table-row" wx:for="{{userList}}" wx:key="id">
+          <text class="col-username">{{item.username}}</text>
+          <text class="col-nickname">{{item.name || '-'}}</text>
+          <view class="col-role">
+            <text class="role-tag-small" style="background-color: {{roleColors[item.role] || '#7b8ca8'}}20; color: {{roleColors[item.role] || '#7b8ca8'}};">
+              {{roleNames[item.role] || '用户'}}
+            </text>
+          </view>
+          <text class="col-school">{{item.school || '-'}}</text>
+          <view class="col-action">
+            <text class="delete-link {{item.id === userInfo.id ? 'disabled' : ''}}" data-id="{{item.id}}" bindtap="{{item.id === userInfo.id ? '' : 'deleteUser'}}">
+              {{item.id === userInfo.id ? '自己' : '删除'}}
+            </text>
+          </view>
+        </view>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:if="{{userList.length === 0}}">
+      <text class="empty-icon">👤</text>
+      <text class="empty-text">暂无用户数据</text>
+    </view>
+  </view>
+</view>

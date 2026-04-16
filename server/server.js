@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,33 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// 头像上传配置
+const avatarStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const dir = path.join(__dirname, 'uploads', 'avatars');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function(req, file, cb) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, 'avatar_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + ext);
+  }
+});
+const uploadAvatar = multer({ 
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: function(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'));
+    }
+  }
+});
 
 // 数据库初始化
 const dbPath = path.join(__dirname, 'database.sqlite');
@@ -956,6 +984,28 @@ app.get('/api/users/:id', authenticateToken, (req, res) => {
         if (!row) return res.status(404).json(error('用户不存在', 404));
         res.json(success(row));
     });
+});
+
+// 上传头像
+app.post('/api/upload/avatar', authenticateToken, uploadAvatar.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ code: 400, message: '未上传文件', data: null });
+  }
+  
+  const avatarUrl = '/uploads/avatars/' + req.file.filename;
+  
+  // 更新数据库中的头像URL
+  db.run('UPDATE users SET avatar = ?, created_at = created_at WHERE id = ?', 
+    [avatarUrl, req.user.id],
+    function(err) {
+      if (err) {
+        // 删除上传的文件
+        fs.unlink(req.file.path, () => {});
+        return res.status(500).json({ code: 500, message: '保存失败', data: null });
+      }
+      res.json({ code: 200, message: 'success', data: { url: avatarUrl } });
+    }
+  );
 });
 
 // 更新用户资料

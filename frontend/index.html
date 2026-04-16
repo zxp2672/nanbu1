@@ -53,8 +53,49 @@
   <div id="particles-js" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none"></div>
   <div class="app-body" style="position:relative;z-index:1">
 
+    <!-- 下拉刷新指示器 -->
+    <div class="pull-refresh" id="pullRefresh">
+      <div class="pull-refresh-spinner"></div>
+      <div class="pull-refresh-text">下拉刷新</div>
+    </div>
+
     <!-- 首页 -->
     <div id="page-home" class="page active">
+      <!-- 首页骨架屏 -->
+      <div class="skeleton skeleton-home" id="skeletonHome">
+        <div class="skeleton-card">
+          <div class="skeleton-line w40 h20"></div>
+          <div class="skeleton-line w60"></div>
+          <div class="skeleton-line w80"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-row">
+            <div class="skeleton-circle"></div>
+            <div style="flex:1">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w40 h12"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-row">
+            <div class="skeleton-circle"></div>
+            <div style="flex:1">
+              <div class="skeleton-line w80"></div>
+              <div class="skeleton-line w60 h12"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-row">
+            <div class="skeleton-circle"></div>
+            <div style="flex:1">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w40 h12"></div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="home-hero">
         <div class="home-hero-grid"></div>
         <div class="home-hero-content">
@@ -88,6 +129,21 @@
 
     <!-- 校友页 -->
     <div id="page-alumni" class="page">
+      <!-- 校友列表骨架屏 -->
+      <div class="skeleton skeleton-alumni" id="skeletonAlumni" style="display:none;">
+        <div class="skeleton-card" style="display:flex;gap:12px;align-items:center;">
+          <div class="skeleton-circle"></div>
+          <div style="flex:1"><div class="skeleton-line w60"></div><div class="skeleton-line w40 h12"></div></div>
+        </div>
+        <div class="skeleton-card" style="display:flex;gap:12px;align-items:center;">
+          <div class="skeleton-circle"></div>
+          <div style="flex:1"><div class="skeleton-line w80"></div><div class="skeleton-line w60 h12"></div></div>
+        </div>
+        <div class="skeleton-card" style="display:flex;gap:12px;align-items:center;">
+          <div class="skeleton-circle"></div>
+          <div style="flex:1"><div class="skeleton-line w60"></div><div class="skeleton-line w40 h12"></div></div>
+        </div>
+      </div>
       <div class="page-topbar">
         <div class="page-topbar-title">校友通讯录</div>
         <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addAlumniModal')" title="添加校友">＋</button>
@@ -97,10 +153,32 @@
         <input type="text" id="alumniSearch" placeholder="搜索姓名/职业/城市/公司..." oninput="renderAlumniList()">
       </div>
       <div class="alumni-grid" id="alumniList"></div>
+      <div class="load-more" id="loadMoreAlumni" style="display:none;">
+        <div class="load-more-spinner"></div>
+        <span class="load-more-text">加载中...</span>
+      </div>
     </div>
 
     <!-- 资源页 -->
     <div id="page-resource" class="page">
+      <!-- 资源列表骨架屏 -->
+      <div class="skeleton skeleton-resource" id="skeletonResource" style="display:none;">
+        <div class="skeleton-card">
+          <div class="skeleton-line w40 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w80"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line w60 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w60"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line w50 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w70"></div>
+        </div>
+      </div>
       <div class="page-topbar">
         <div class="page-topbar-title">资源共享</div>
         <button class="icon-btn" onclick="if(Auth.requireAuth()) openModal('addResourceModal')" title="发布资源">＋</button>
@@ -113,10 +191,32 @@
         <button class="tab-btn" onclick="switchResTab(this,'other')">其他</button>
       </div>
       <div class="resource-list" id="resourceList"></div>
+      <div class="load-more" id="loadMoreResource" style="display:none;">
+        <div class="load-more-spinner"></div>
+        <span class="load-more-text">加载中...</span>
+      </div>
     </div>
 
     <!-- 活动页 -->
     <div id="page-activity" class="page">
+      <!-- 活动列表骨架屏 -->
+      <div class="skeleton skeleton-activity" id="skeletonActivity" style="display:none;">
+        <div class="skeleton-card">
+          <div class="skeleton-line w60 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w40"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line w70 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w50"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line w50 h20"></div>
+          <div class="skeleton-line w100"></div>
+          <div class="skeleton-line w60"></div>
+        </div>
+      </div>
       <div class="page-topbar">
         <div class="page-topbar-title">校友活动</div>
         <button class="icon-btn admin-only" onclick="if(Auth.requireAdmin()) openModal('addActivityModal')">＋</button>
@@ -128,6 +228,10 @@
         <button class="tab-btn" onclick="switchActTab(this,'ended')">已结束</button>
       </div>
       <div class="activity-list" id="activityList"></div>
+      <div class="load-more" id="loadMoreActivity" style="display:none;">
+        <div class="load-more-spinner"></div>
+        <span class="load-more-text">加载中...</span>
+      </div>
     </div>
 
     <!-- 我的页 -->

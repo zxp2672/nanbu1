@@ -6,6 +6,36 @@ let postImageData = '';
 let alumniAvatarData = '';
 let profileAvatarData = '';
 let schoolChartInstance = null;
+let isNavigating = false; // 防抖锁
+
+// 分页状态
+const pagination = {
+  alumni: { page: 1, pageSize: 10, hasMore: true, loading: false, allData: [] },
+  resource: { page: 1, pageSize: 10, hasMore: true, loading: false, allData: [] },
+  activity: { page: 1, pageSize: 10, hasMore: true, loading: false, allData: [] }
+};
+
+// ===== 骨架屏控制函数 =====
+function showPageLoading(pageId) {
+  const skeleton = document.getElementById('skeleton' + pageId.charAt(0).toUpperCase() + pageId.slice(1));
+  if (skeleton) skeleton.style.display = '';
+}
+
+function hidePageLoading(pageId) {
+  const skeleton = document.getElementById('skeleton' + pageId.charAt(0).toUpperCase() + pageId.slice(1));
+  if (skeleton) skeleton.style.display = 'none';
+}
+
+function showRetry(container, retryFn) {
+  if (typeof container === 'string') container = document.getElementById(container);
+  if (!container) return;
+  container.innerHTML = `
+    <div class="retry-wrap">
+      <div>加载失败</div>
+      <button class="retry-btn" onclick="(${retryFn.toString()})()">点击重试</button>
+    </div>
+  `;
+}
 
 // ===== 认证模块 =====
 const Auth = {
@@ -149,6 +179,7 @@ function doLogout() {
 }
 
 async function startApp() {
+  document.body.style.touchAction = 'manipulation';
   $('mainApp').style.display = 'flex';
   applyPermissions();
   await renderHomePage();
@@ -179,20 +210,64 @@ function applyPermissions() {
 }
 
 // ===== 导航 =====
-async function navigateTo(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+async function navigateTo(page, animType) {
+  if (isNavigating) return;
+  
+  // 同页面不切换
+  const currentPage = document.querySelector('.page.active');
+  const currentPageId = currentPage ? currentPage.id.replace('page-', '') : '';
+  if (currentPageId === page) return;
+  
+  isNavigating = true;
+  
+  const nextPage = $('page-' + page);
+  if (!nextPage) { isNavigating = false; return; }
+  
+  // 确定动画类型
+  const enterClass = animType === 'slideLeft' ? 'slide-in-right' : 
+                     animType === 'slideRight' ? 'slide-in-left' : 'page-enter';
+  const exitClass = animType === 'slideLeft' ? 'slide-out-left' : 
+                    animType === 'slideRight' ? 'slide-out-right' : 'page-exit';
+  
+  // 1. 退出动画
+  if (currentPage) {
+    currentPage.classList.add(exitClass);
+    await new Promise(r => setTimeout(r, animType ? 250 : 200));
+    currentPage.classList.remove('active', exitClass, 'page-enter', 'page-exit', 'slide-in-right', 'slide-out-left', 'slide-in-left', 'slide-out-right');
+  }
+  
+  // 2. 进入动画
+  nextPage.classList.add('active', enterClass);
+  await new Promise(r => setTimeout(r, animType ? 300 : 280));
+  nextPage.classList.remove(enterClass);
+  
+  // 3. 更新底部导航高亮
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const pg = $('page-' + page);
-  if (pg) pg.classList.add('active');
-  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
-  if (nav) nav.classList.add('active');
-  if (page === 'home') await renderHomePage();
-  if (page === 'admin') await renderAdminPage();
-  if (page === 'me') await renderMePage();
+  const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (navItem) navItem.classList.add('active');
+  
+  // 4. 滚动到顶部
+  const appBody = document.querySelector('.app-body');
+  if (appBody) appBody.scrollTop = 0;
+  
+  // 5. 触发页面数据加载
+  try {
+    if (page === 'home') await renderHomePage();
+    if (page === 'alumni') await renderAlumniList();
+    if (page === 'resource') await renderResourceList();
+    if (page === 'activity') await renderActivityList();
+    if (page === 'admin') await renderAdminPage();
+    if (page === 'me') await renderMePage();
+  } catch(e) {
+    console.error('页面渲染失败:', e);
+  }
+  
+  isNavigating = false;
 }
 
 // ===== 首页 =====
 async function renderHomePage() {
+  // 首页骨架屏默认显示，不需要手动显示
   try {
     // 并行获取数据
     const [alumni, activities, resources, posts] = await Promise.all([
@@ -201,6 +276,10 @@ async function renderHomePage() {
       ResourceSvc.getAll(),
       PostSvc.getAll()
     ]);
+    
+    // 数据加载成功，隐藏骨架屏
+    hidePageLoading('home');
+    
     animateNum($('statAlumni'), alumni.length || 0);
     animateNum($('statActivities'), activities.length || 0);
     animateNum($('statResources'), resources.length || 0);
@@ -209,10 +288,13 @@ async function renderHomePage() {
     renderHomeFeedWithData(posts);
   } catch (e) {
     console.error('渲染首页失败:', e);
+    hidePageLoading('home');
     // 显示默认值
     $('statAlumni').textContent = '0';
     $('statActivities').textContent = '0';
     $('statResources').textContent = '0';
+    // 显示重试按钮
+    showRetry('homeFeed', () => renderHomePage());
   }
 }
 
@@ -364,7 +446,24 @@ async function setFilter(key, val) {
 
 async function renderAlumniList() {
   const q = $('alumniSearch') ? $('alumniSearch').value.trim() : '';
+  
+  // 显示骨架屏
+  showPageLoading('alumni');
+  
   try {
+    // 重置分页状态
+    pagination.alumni.page = 1;
+    pagination.alumni.hasMore = true;
+    pagination.alumni.loading = false;
+    pagination.alumni.allData = [];
+    
+    // 隐藏加载更多指示器
+    const indicator = $('loadMoreAlumni');
+    if (indicator) {
+      indicator.style.display = 'none';
+      indicator.classList.remove('no-more');
+    }
+    
     let list = await AlumniSvc.search(q, filterState.school, filterState.level, filterState.year, filterState.classname);
     // 管理员可看到自己权限范围内的 pending
     if (Perm.isAnyAdmin(currentUser)) {
@@ -372,11 +471,32 @@ async function renderAlumniList() {
       const pendingIds = new Set(list.map(a => a.id));
       pending.forEach(a => { if (!pendingIds.has(a.id)) list.push(a); });
     }
-    $('alumniList').innerHTML = list.length ? list.map(a => alumniCardHtml(a)).join('') :
+
+    // 存储完整数据用于分页
+    pagination.alumni.allData = list;
+
+    // 只显示第一页数据
+    const pageData = list.slice(0, pagination.alumni.pageSize);
+
+    // 检查是否还有更多数据
+    if (list.length <= pagination.alumni.pageSize) {
+      pagination.alumni.hasMore = false;
+    }
+    
+    // 数据加载成功，隐藏骨架屏
+    hidePageLoading('alumni');
+
+    $('alumniList').innerHTML = pageData.length ? pageData.map(a => alumniCardHtml(a)).join('') :
       '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><p>暂无校友信息</p></div>';
+
+    // 如果有更多数据，显示加载更多指示器
+    if (pagination.alumni.hasMore && pageData.length > 0) {
+      if (indicator) indicator.style.display = 'flex';
+    }
   } catch (e) {
     console.error('渲染校友列表失败:', e);
-    $('alumniList').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><p>加载失败</p></div>';
+    hidePageLoading('alumni');
+    showRetry('alumniList', () => renderAlumniList());
   }
 }
 
@@ -534,15 +654,59 @@ function handleAlumniAvatarFile(input) {
 // ===== 资源页 =====
 async function switchResTab(btn, type) {
   document.querySelectorAll('#page-resource .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); resTab = type; await renderResourceList();
+  btn.classList.add('active'); resTab = type; 
+  // 重置分页状态
+  pagination.resource.page = 1;
+  pagination.resource.hasMore = true;
+  pagination.resource.loading = false;
+  pagination.resource.allData = [];
+  await renderResourceList();
 }
 async function renderResourceList() {
+  // 显示骨架屏
+  showPageLoading('resource');
+  
   try {
+    // 重置分页状态
+    pagination.resource.page = 1;
+    pagination.resource.hasMore = true;
+    pagination.resource.loading = false;
+    pagination.resource.allData = [];
+    
+    // 隐藏加载更多指示器
+    const indicator = $('loadMoreResource');
+    if (indicator) {
+      indicator.style.display = 'none';
+      indicator.classList.remove('no-more');
+    }
+    
     const list = await ResourceSvc.filter(resTab);
-    $('resourceList').innerHTML = list.length ? list.map(r => resourceCardHtml(r)).join('') :
+
+    // 存储完整数据用于分页
+    pagination.resource.allData = list;
+
+    // 只显示第一页数据
+    const pageData = list.slice(0, pagination.resource.pageSize);
+
+    // 检查是否还有更多数据
+    if (list.length <= pagination.resource.pageSize) {
+      pagination.resource.hasMore = false;
+    }
+    
+    // 数据加载成功，隐藏骨架屏
+    hidePageLoading('resource');
+
+    $('resourceList').innerHTML = pageData.length ? pageData.map(r => resourceCardHtml(r)).join('') :
       '<div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无资源</p></div>';
+
+    // 如果有更多数据，显示加载更多指示器
+    if (pagination.resource.hasMore && pageData.length > 0) {
+      if (indicator) indicator.style.display = 'flex';
+    }
   } catch (e) {
-    $('resourceList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>加载失败</p></div>';
+    console.error('渲染资源列表失败:', e);
+    hidePageLoading('resource');
+    showRetry('resourceList', () => renderResourceList());
   }
 }
 function resourceCardHtml(r) {
@@ -584,15 +748,59 @@ function deleteResource(id) {
 // ===== 活动页 =====
 async function switchActTab(btn, status) {
   document.querySelectorAll('#page-activity .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active'); actTab = status; await renderActivityList();
+  btn.classList.add('active'); actTab = status; 
+  // 重置分页状态
+  pagination.activity.page = 1;
+  pagination.activity.hasMore = true;
+  pagination.activity.loading = false;
+  pagination.activity.allData = [];
+  await renderActivityList();
 }
 async function renderActivityList() {
+  // 显示骨架屏
+  showPageLoading('activity');
+  
   try {
+    // 重置分页状态
+    pagination.activity.page = 1;
+    pagination.activity.hasMore = true;
+    pagination.activity.loading = false;
+    pagination.activity.allData = [];
+    
+    // 隐藏加载更多指示器
+    const indicator = $('loadMoreActivity');
+    if (indicator) {
+      indicator.style.display = 'none';
+      indicator.classList.remove('no-more');
+    }
+    
     const list = await ActivitySvc.filter(actTab);
-    $('activityList').innerHTML = list.length ? list.map(a => actCardHtml(a)).join('') :
+
+    // 存储完整数据用于分页
+    pagination.activity.allData = list;
+
+    // 只显示第一页数据
+    const pageData = list.slice(0, pagination.activity.pageSize);
+
+    // 检查是否还有更多数据
+    if (list.length <= pagination.activity.pageSize) {
+      pagination.activity.hasMore = false;
+    }
+    
+    // 数据加载成功，隐藏骨架屏
+    hidePageLoading('activity');
+
+    $('activityList').innerHTML = pageData.length ? pageData.map(a => actCardHtml(a)).join('') :
       '<div class="empty-state"><div class="empty-state-icon">🎉</div><p>暂无活动</p></div>';
+
+    // 如果有更多数据，显示加载更多指示器
+    if (pagination.activity.hasMore && pageData.length > 0) {
+      if (indicator) indicator.style.display = 'flex';
+    }
   } catch (e) {
-    $('activityList').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🎉</div><p>加载失败</p></div>';
+    console.error('渲染活动列表失败:', e);
+    hidePageLoading('activity');
+    showRetry('activityList', () => renderActivityList());
   }
 }
 function actCardHtml(a) {
@@ -989,3 +1197,343 @@ function deleteUser(id) {
 
 // ===== 重置数据 =====
 function resetData() { DataStore.reset(); }
+
+// ===== 下拉刷新模块 =====
+(function initPullRefresh() {
+  const appBody = document.querySelector('.app-body');
+  const pullRefresh = document.getElementById('pullRefresh');
+  if (!appBody || !pullRefresh) return;
+
+  let startY = 0;
+  let pulling = false;
+  let isRefreshing = false;
+  const THRESHOLD = 60; // 触发刷新的下拉距离
+
+  const pullText = pullRefresh.querySelector('.pull-refresh-text');
+
+  appBody.addEventListener('touchstart', function(e) {
+    if (isRefreshing) return;
+    if (appBody.scrollTop <= 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  appBody.addEventListener('touchmove', function(e) {
+    if (!pulling || isRefreshing) return;
+    
+    const currentY = e.touches[0].clientY;
+    let pullDist = (currentY - startY) * 0.4; // 阻尼系数
+    
+    if (pullDist > 0 && appBody.scrollTop <= 0) {
+      pullDist = Math.min(pullDist, 80);
+      pullRefresh.style.transform = `translateY(${pullDist + 60}px)`;
+      pullRefresh.classList.add('pulling');
+      pullRefresh.classList.remove('refreshing');
+      
+      if (pullDist >= THRESHOLD) {
+        pullText.textContent = '松开刷新';
+      } else {
+        pullText.textContent = '下拉刷新';
+      }
+    }
+  }, { passive: true });
+
+  appBody.addEventListener('touchend', async function(e) {
+    if (!pulling || isRefreshing) return;
+    pulling = false;
+    
+    const endY = e.changedTouches[0].clientY;
+    const pullDist = (endY - startY) * 0.4;
+    
+    if (pullDist >= THRESHOLD && appBody.scrollTop <= 0) {
+      // 触发刷新
+      isRefreshing = true;
+      pullRefresh.style.transform = `translateY(${60 + 60}px)`;
+      pullRefresh.classList.remove('pulling');
+      pullRefresh.classList.add('refreshing');
+      pullText.textContent = '刷新中...';
+      
+      try {
+        await doRefresh();
+      } catch(e) {
+        console.error('刷新失败:', e);
+      }
+      
+      // 刷新完成，收起
+      pullText.textContent = '刷新完成';
+      await new Promise(r => setTimeout(r, 500));
+      pullRefresh.style.transition = 'transform 0.3s ease';
+      pullRefresh.style.transform = '';
+      pullRefresh.classList.remove('refreshing');
+      pullText.textContent = '下拉刷新';
+      
+      await new Promise(r => setTimeout(r, 300));
+      pullRefresh.style.transition = '';
+      isRefreshing = false;
+    } else {
+      // 未达阈值，回弹
+      pullRefresh.style.transition = 'transform 0.3s ease';
+      pullRefresh.style.transform = '';
+      pullRefresh.classList.remove('pulling');
+      
+      await new Promise(r => setTimeout(r, 300));
+      pullRefresh.style.transition = '';
+    }
+  });
+
+  // 根据当前活跃页面刷新数据
+  async function doRefresh() {
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) return;
+    
+    const pageId = activePage.id.replace('page-', '');
+    
+    // 重置分页状态
+    if (pagination[pageId]) {
+      pagination[pageId].page = 1;
+      pagination[pageId].hasMore = true;
+      pagination[pageId].loading = false;
+      pagination[pageId].allData = [];
+    }
+    
+    // 调用现有的渲染函数刷新数据
+    switch(pageId) {
+      case 'home': 
+        if (typeof renderHomePage === 'function') await renderHomePage();
+        break;
+      case 'alumni':
+        if (typeof renderAlumniList === 'function') await renderAlumniList();
+        break;
+      case 'resource':
+        if (typeof renderResourceList === 'function') await renderResourceList();
+        break;
+      case 'activity':
+        if (typeof renderActivityList === 'function') await renderActivityList();
+        break;
+      case 'admin':
+        if (typeof renderAdminPage === 'function') await renderAdminPage();
+        break;
+      case 'me':
+        if (typeof renderMePage === 'function') await renderMePage();
+        break;
+    }
+  }
+})();
+
+// ===== 触底加载更多模块 =====
+(function initScrollLoad() {
+  const appBody = document.querySelector('.app-body');
+  if (!appBody) return;
+  
+  let scrollTimer = null;
+  
+  appBody.addEventListener('scroll', function() {
+    if (scrollTimer) return;
+    scrollTimer = requestAnimationFrame(() => {
+      scrollTimer = null;
+      
+      const { scrollTop, clientHeight, scrollHeight } = appBody;
+      // 距离底部100px时触发加载
+      if (scrollTop + clientHeight >= scrollHeight - 100) {
+        onReachBottom();
+      }
+    });
+  }, { passive: true });
+  
+  async function onReachBottom() {
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) return;
+    const pageId = activePage.id.replace('page-', '');
+    
+    if (pagination[pageId] && pagination[pageId].hasMore && !pagination[pageId].loading) {
+      await loadMore(pageId);
+    }
+  }
+})();
+
+// 加载更多数据
+async function loadMore(pageId) {
+  const state = pagination[pageId];
+  if (!state || state.loading || !state.hasMore) return;
+  
+  state.loading = true;
+  const indicatorId = 'loadMore' + pageId.charAt(0).toUpperCase() + pageId.slice(1);
+  const indicator = document.getElementById(indicatorId);
+  if (indicator) {
+    indicator.style.display = 'flex';
+    indicator.classList.remove('no-more');
+    const textEl = indicator.querySelector('.load-more-text');
+    if (textEl) textEl.textContent = '加载中...';
+  }
+  
+  try {
+    state.page++;
+    
+    // 根据 pageId 获取对应数据并追加到列表
+    let items = [];
+    switch(pageId) {
+      case 'alumni':
+        items = await fetchAlumniPage(state.page, state.pageSize);
+        appendAlumniItems(items);
+        break;
+      case 'resource':
+        items = await fetchResourcePage(state.page, state.pageSize);
+        appendResourceItems(items);
+        break;
+      case 'activity':
+        items = await fetchActivityPage(state.page, state.pageSize);
+        appendActivityItems(items);
+        break;
+    }
+    
+    if (items.length < state.pageSize) {
+      state.hasMore = false;
+      if (indicator) {
+        indicator.classList.add('no-more');
+        const textEl = indicator.querySelector('.load-more-text');
+        if (textEl) textEl.textContent = '没有更多了';
+      }
+    }
+  } catch(e) {
+    console.error('加载更多失败:', e);
+    state.page--; // 回退页码
+    if (indicator) {
+      const textEl = indicator.querySelector('.load-more-text');
+      if (textEl) textEl.textContent = '加载失败，请重试';
+    }
+  }
+  
+  state.loading = false;
+}
+
+// 获取校友列表指定页数据（从缓存数据分页）
+async function fetchAlumniPage(page, pageSize) {
+  // 从缓存的 allData 中分页
+  const list = pagination.alumni.allData;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return list.slice(start, end);
+}
+
+// 获取资源列表指定页数据（从缓存数据分页）
+async function fetchResourcePage(page, pageSize) {
+  // 从缓存的 allData 中分页
+  const list = pagination.resource.allData;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return list.slice(start, end);
+}
+
+// 获取活动列表指定页数据（从缓存数据分页）
+async function fetchActivityPage(page, pageSize) {
+  // 从缓存的 allData 中分页
+  const list = pagination.activity.allData;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  return list.slice(start, end);
+}
+
+// 将新数据追加到现有校友列表DOM
+function appendAlumniItems(items) {
+  const container = document.getElementById('alumniList');
+  if (!container || items.length === 0) return;
+  
+  // 如果当前显示的是空状态，先清空
+  if (container.querySelector('.empty-state')) {
+    container.innerHTML = '';
+  }
+  
+  const html = items.map(a => alumniCardHtml(a)).join('');
+  container.insertAdjacentHTML('beforeend', html);
+}
+
+// 将新数据追加到现有资源列表DOM
+function appendResourceItems(items) {
+  const container = document.getElementById('resourceList');
+  if (!container || items.length === 0) return;
+  
+  // 如果当前显示的是空状态，先清空
+  if (container.querySelector('.empty-state')) {
+    container.innerHTML = '';
+  }
+  
+  const html = items.map(r => resourceCardHtml(r)).join('');
+  container.insertAdjacentHTML('beforeend', html);
+}
+
+// 将新数据追加到现有活动列表DOM
+function appendActivityItems(items) {
+  const container = document.getElementById('activityList');
+  if (!container || items.length === 0) return;
+  
+  // 如果当前显示的是空状态，先清空
+  if (container.querySelector('.empty-state')) {
+    container.innerHTML = '';
+  }
+  
+  const html = items.map(a => actCardHtml(a)).join('');
+  container.insertAdjacentHTML('beforeend', html);
+}
+
+// ============ 手势滑动切换Tab ============
+(function initSwipeGesture() {
+  const appBody = document.querySelector('.app-body');
+  if (!appBody) return;
+
+  const TAB_ORDER = ['home', 'alumni', 'resource', 'activity', 'me'];
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let swiping = false;
+
+  appBody.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    swiping = true;
+  }, { passive: true });
+
+  appBody.addEventListener('touchmove', function(e) {
+    if (!swiping) return;
+    // 如果垂直滑动距离大于水平，取消手势识别（用户在滚动页面）
+    const dx = Math.abs(e.touches[0].clientX - touchStartX);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY);
+    if (dy > dx + 10) {
+      swiping = false;
+    }
+  }, { passive: true });
+
+  appBody.addEventListener('touchend', function(e) {
+    if (!swiping) return;
+    swiping = false;
+
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - touchStartX;
+    const dy = endY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+
+    // 条件：水平位移 > 80px，水平 > 垂直，时间 < 500ms
+    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) || dt > 500) return;
+
+    // 获取当前活跃页面
+    const activePage = document.querySelector('.page.active');
+    if (!activePage) return;
+    const currentPageId = activePage.id.replace('page-', '');
+    const currentIndex = TAB_ORDER.indexOf(currentPageId);
+    if (currentIndex === -1) return;
+
+    // 检查是否有弹窗/模态框打开，如果有就不触发
+    const modal = document.querySelector('.modal.open');
+    if (modal) return;
+
+    if (dx < 0 && currentIndex < TAB_ORDER.length - 1) {
+      // 向左滑 -> 切换到右侧 tab
+      navigateTo(TAB_ORDER[currentIndex + 1], 'slideLeft');
+    } else if (dx > 0 && currentIndex > 0) {
+      // 向右滑 -> 切换到左侧 tab
+      navigateTo(TAB_ORDER[currentIndex - 1], 'slideRight');
+    }
+  }, { passive: true });
+})();

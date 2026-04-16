@@ -1,0 +1,74 @@
+<view class="container">
+  <!-- 顶部标题区 -->
+  <view class="header-section">
+    <text class="main-title">南部县校友会联盟</text>
+    <text class="sub-title">连接校友 · 共创未来</text>
+  </view>
+
+  <!-- 统计卡片区 -->
+  <view class="stats-grid">
+    <view class="stat-card" bindtap="navigateToAlumni">
+      <text class="stat-number">{{stats.alumniCount}}</text>
+      <text class="stat-label">校友总数</text>
+    </view>
+    <view class="stat-card" bindtap="navigateToActivity">
+      <text class="stat-number">{{stats.activityCount}}</text>
+      <text class="stat-label">活动数量</text>
+    </view>
+    <view class="stat-card" bindtap="navigateToResource">
+      <text class="stat-number">{{stats.resourceCount}}</text>
+      <text class="stat-label">资源数量</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-number">{{stats.postCount}}</text>
+      <text class="stat-label">动态数量</text>
+    </view>
+  </view>
+
+  <!-- 学校分布区 -->
+  <view class="section" wx:if="{{schoolStats.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">学校分布</text>
+    </view>
+    <view class="school-stats-list">
+      <view class="school-stat-item" wx:for="{{schoolStats}}" wx:key="school">
+        <text class="school-name">{{item.school}}</text>
+        <view class="progress-wrapper">
+          <view class="progress-bar-bg">
+            <view class="progress-bar" style="width: {{item.percentage}}%; background-color: {{item.color}};"></view>
+          </view>
+        </view>
+        <text class="school-count">{{item.count}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 学校卡片横向滚动 -->
+  <view class="section" wx:if="{{schools.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">合作学校</text>
+    </view>
+    <scroll-view class="school-scroll" scroll-x="true" show-scrollbar="false">
+      <view class="school-card-wrapper" wx:for="{{schools}}" wx:key="id">
+        <view class="school-card" style="background: linear-gradient(135deg, {{item.color || '#1a6fc4'}} 0%, {{item.color || '#1a6fc4'}}dd 100%);">
+          <text class="school-card-name">{{item.name}}</text>
+          <text class="school-card-short">{{item.short || ''}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 最新动态区 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">最新动态</text>
+    </view>
+    <view class="posts-list" wx:if="{{recentPosts.length > 0}}">
+      <post-card wx:for="{{recentPosts}}" wx:key="id" post="{{item}}"></post-card>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无动态</text>
+    </view>
+  </view>
+</view>

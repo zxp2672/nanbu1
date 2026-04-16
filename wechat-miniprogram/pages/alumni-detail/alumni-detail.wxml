@@ -1,0 +1,101 @@
+<!--pages/alumni-detail/alumni-detail.wxml-->
+<view class="detail-page">
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <block wx:if="{{!loading && alumni}}">
+    <!-- 顶部头像区域 -->
+    <view class="header-section">
+      <view class="avatar-wrapper">
+        <image 
+          wx:if="{{alumni.avatar}}" 
+          class="avatar-img" 
+          src="{{alumni.avatar}}" 
+          mode="aspectFill"
+        ></image>
+        <view 
+          wx:else 
+          class="avatar-placeholder"
+          style="background-color: {{schoolColors[alumni.school] || '#1a6fc4'}}"
+        >
+          {{alumni.name ? alumni.name.charAt(0) : '?'}}
+        </view>
+      </view>
+      <text class="alumni-name">{{alumni.name || '未知'}}</text>
+      <view 
+        class="school-tag"
+        style="background-color: {{schoolColors[alumni.school] || '#1a6fc4'}}20; color: {{schoolColors[alumni.school] || '#1a6fc4'}}; border-color: {{schoolColors[alumni.school] || '#1a6fc4'}}40"
+      >
+        {{alumni.school || '未知学校'}}
+      </view>
+    </view>
+
+    <!-- 信息卡片 -->
+    <view class="info-card">
+      <!-- 学段年份班级 -->
+      <view class="info-row" wx:if="{{alumni.level || alumni.year || alumni.classname}}">
+        <view class="info-icon">🎓</view>
+        <view class="info-content">
+          <text class="info-label">就读信息</text>
+          <text class="info-value">
+            {{alumni.level || ''}}{{alumni.year ? ' · ' + alumni.year + '届' : ''}}{{alumni.classname ? ' · ' + alumni.classname : ''}}
+          </text>
+        </view>
+      </view>
+
+      <!-- 职业公司 -->
+      <view class="info-row" wx:if="{{alumni.job || alumni.company}}">
+        <view class="info-icon">💼</view>
+        <view class="info-content">
+          <text class="info-label">职业</text>
+          <text class="info-value">{{alumni.job || ''}}{{alumni.company ? ' · ' + alumni.company : ''}}</text>
+        </view>
+      </view>
+
+      <!-- 城市 -->
+      <view class="info-row" wx:if="{{alumni.city}}">
+        <view class="info-icon">📍</view>
+        <view class="info-content">
+          <text class="info-label">所在城市</text>
+          <text class="info-value">{{alumni.city}}</text>
+        </view>
+      </view>
+
+      <!-- 电话 -->
+      <view class="info-row" wx:if="{{alumni.phone}}">
+        <view class="info-icon">📞</view>
+        <view class="info-content">
+          <text class="info-label">联系电话</text>
+          <text class="info-value phone-link" bindtap="makeCall">{{alumni.phone}}</text>
+        </view>
+      </view>
+
+      <!-- 个人简介 -->
+      <view class="info-row bio-row" wx:if="{{alumni.bio}}">
+        <view class="info-icon">📝</view>
+        <view class="info-content">
+          <text class="info-label">个人简介</text>
+          <text class="info-value bio-text">{{alumni.bio}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作区 -->
+    <view class="action-section" wx:if="{{alumni.phone}}">
+      <button class="call-btn" bindtap="makeCall">
+        <text class="btn-icon">📞</text>
+        <text class="btn-text">拨打电话</text>
+      </button>
+    </view>
+  </block>
+
+  <!-- 错误状态 -->
+  <view class="error-state" wx:if="{{!loading && !alumni}}">
+    <text class="error-icon">😕</text>
+    <text class="error-text">未找到校友信息</text>
+    <button class="back-btn" bindtap="goBack">返回</button>
+  </view>
+</view>

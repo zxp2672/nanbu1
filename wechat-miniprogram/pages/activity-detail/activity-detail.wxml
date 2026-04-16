@@ -1,0 +1,131 @@
+<!--pages/activity-detail/activity-detail.wxml-->
+<view class="activity-detail-page">
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+  
+  <!-- 活动详情内容 -->
+  <block wx:if="{{!loading && activity}}">
+    <!-- 活动标题区 -->
+    <view class="header-section">
+      <view class="title-row">
+        <text class="activity-title">{{activity.name}}</text>
+        <view class="status-badge" style="background: {{activity.statusColor}}20; color: {{activity.statusColor}}; border-color: {{activity.statusColor}}40">
+          {{activity.statusText}}
+        </view>
+      </view>
+    </view>
+    
+    <!-- 信息卡片 -->
+    <view class="info-card">
+      <view class="info-row">
+        <text class="info-icon">📅</text>
+        <view class="info-content">
+          <text class="info-label">活动时间</text>
+          <text class="info-value">{{activity.startTime ? formatDateTime(activity.startTime) : ''}} ~ {{activity.endTime ? formatDateTime(activity.endTime) : ''}}</text>
+        </view>
+      </view>
+      
+      <view class="info-row" wx:if="{{activity.location}}">
+        <text class="info-icon">📍</text>
+        <view class="info-content">
+          <text class="info-label">活动地点</text>
+          <text class="info-value">{{activity.location}}</text>
+        </view>
+      </view>
+      
+      <view class="info-row">
+        <text class="info-icon">👤</text>
+        <view class="info-content">
+          <text class="info-label">组织者</text>
+          <text class="info-value">{{activity.organizerName}}</text>
+        </view>
+      </view>
+      
+      <view class="info-row" wx:if="{{activity.description}}">
+        <text class="info-icon">📝</text>
+        <view class="info-content">
+          <text class="info-label">活动描述</text>
+          <text class="info-value description">{{activity.description}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 报名信息区 -->
+    <view class="signup-card">
+      <view class="signup-header">
+        <text class="signup-title">报名情况</text>
+        <text class="signup-count">
+          {{activity.signups ? activity.signups.length : 0}} / {{activity.capacity > 0 ? activity.capacity : '不限'}} 人
+        </text>
+      </view>
+      
+      <!-- 进度条 -->
+      <view class="progress-bar" wx:if="{{activity.capacity > 0}}">
+        <view class="progress-track">
+          <view 
+            class="progress-fill" 
+            style="width: {{activity.signups && activity.capacity ? (activity.signups.length / activity.capacity * 100) : 0}}%"
+          ></view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 报名人员列表 -->
+    <view class="signup-list-card" wx:if="{{activity.signups && activity.signups.length > 0}}">
+      <view class="signup-list-header">
+        <text class="signup-list-title">报名人员 ({{activity.signups.length}}人)</text>
+      </view>
+      
+      <view class="signup-list">
+        <view class="signup-item" wx:for="{{activity.signups}}" wx:key="userId">
+          <view class="signup-avatar">
+            <image wx:if="{{item.avatar}}" src="{{item.avatar}}" class="avatar-img" mode="aspectFill"></image>
+            <text wx:else class="avatar-text">{{item.name ? item.name[0] : '?'}}</text>
+          </view>
+          <view class="signup-info">
+            <text class="signup-name">{{item.name}}</text>
+            <text class="signup-school" wx:if="{{item.school}}">{{item.school}}</text>
+          </view>
+          <text class="signup-time" wx:if="{{item.signupTime}}">{{formatDateTime(item.signupTime)}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 暂无报名 -->
+    <view class="empty-signup" wx:if="{{!activity.signups || activity.signups.length === 0}}">
+      <text class="empty-icon">👥</text>
+      <text class="empty-text">暂无报名</text>
+    </view>
+    
+    <!-- 底部操作区 -->
+    <view class="action-bar">
+      <!-- 未报名 -->
+      <block wx:if="{{!isSignedUp}}">
+        <button 
+          class="action-btn btn-primary {{activity.status === 'ended' ? 'disabled' : ''}}" 
+          bindtap="doSignup"
+          disabled="{{activity.status === 'ended' || signingUp}}"
+        >
+          <text wx:if="{{signingUp}}">处理中...</text>
+          <text wx:elif="{{activity.status === 'ended'}}">活动已结束</text>
+          <text wx:else>立即报名</text>
+        </button>
+      </block>
+      
+      <!-- 已报名 -->
+      <block wx:if="{{isSignedUp}}">
+        <button 
+          class="action-btn btn-warning" 
+          bindtap="doCancelSignup"
+          disabled="{{signingUp}}"
+        >
+          <text wx:if="{{signingUp}}">处理中...</text>
+          <text wx:else>取消报名</text>
+        </button>
+      </block>
+    </view>
+  </block>
+</view>

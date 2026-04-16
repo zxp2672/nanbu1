@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "alumni-card": "/components/alumni-card/alumni-card"
+  },
+  "enablePullDownRefresh": true,
+  "navigationBarTitleText": "校友名录"
+}

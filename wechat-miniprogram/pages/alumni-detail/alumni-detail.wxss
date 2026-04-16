@@ -1,0 +1,224 @@
+/* pages/alumni-detail/alumni-detail.wxss */
+
+/* 页面容器 */
+.detail-page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding-bottom: 100px;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 24px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 212, 255, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--text2);
+}
+
+/* 顶部头像区域 */
+.header-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px 32px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--bg) 100%);
+}
+
+.avatar-wrapper {
+  margin-bottom: 16px;
+}
+
+.avatar-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 212, 255, 0.3);
+}
+
+.avatar-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 600;
+  color: #fff;
+  border: 3px solid rgba(0, 212, 255, 0.3);
+}
+
+.alumni-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.school-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+/* 信息卡片 */
+.info-card {
+  margin: 0 16px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 8px 0;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.05);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(0, 212, 255, 0.1);
+  border-radius: 10px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+
+.info-value {
+  display: block;
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.phone-link {
+  color: var(--accent);
+}
+
+.bio-row {
+  flex-direction: column;
+}
+
+.bio-row .info-content {
+  margin-left: 50px;
+  margin-top: -46px;
+}
+
+.bio-text {
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+/* 底部操作区 */
+.action-section {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 20px;
+  background: linear-gradient(0deg, var(--bg) 80%, transparent);
+  padding-top: 32px;
+}
+
+.call-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 26px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+}
+
+.call-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.btn-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 24px;
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+}
+
+.error-text {
+  font-size: 16px;
+  color: var(--text2);
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  padding: 12px 32px;
+  background: var(--card);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}

@@ -1,0 +1,38 @@
+<view class="activity-card" hover-class="activity-card-hover" bindtap="onTap">
+  <!-- 顶部：活动名称 + 状态标签 -->
+  <view class="header-row">
+    <text class="activity-name">{{activity.name || '未命名活动'}}</text>
+    <view class="status-tag status-{{status}}">
+      {{statusText}}
+    </view>
+  </view>
+  
+  <!-- 中间：时间范围 | 地点 -->
+  <view class="info-row">
+    <view class="info-item">
+      <text class="info-icon">📅</text>
+      <text class="info-text">{{activity.startTime ? formatDate(activity.startTime) : ''}} ~ {{activity.endTime ? formatDate(activity.endTime) : ''}}</text>
+    </view>
+  </view>
+  
+  <view class="info-row" wx:if="{{activity.location}}">
+    <view class="info-item">
+      <text class="info-icon">📍</text>
+      <text class="info-text">{{activity.location}}</text>
+    </view>
+  </view>
+  
+  <!-- 底部：报名人数/容量 + 组织者 -->
+  <view class="footer-row">
+    <view class="signup-info">
+      <text class="signup-count">{{activity.signups ? activity.signups.length : 0}}</text>
+      <text class="signup-divider">/</text>
+      <text class="signup-capacity">{{activity.capacity || 0}}</text>
+      <text class="signup-label">人报名</text>
+    </view>
+    <view class="organizer" wx:if="{{activity.organizerName}}">
+      <text class="organizer-label">组织者：</text>
+      <text class="organizer-name">{{activity.organizerName}}</text>
+    </view>
+  </view>
+</view>

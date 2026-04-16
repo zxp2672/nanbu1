@@ -1,0 +1,319 @@
+/* 管理后台页样式 */
+
+/* 页面头部 */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 170, 0, 0.1) 0%, transparent 100%);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.current-role {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.role-label {
+  color: var(--text2);
+}
+
+.role-value {
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+/* Tab切换栏 */
+.tab-bar {
+  display: flex;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  font-size: 14px;
+  color: var(--text2);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: 4px;
+  width: 24px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* 区块标题 */
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.section-title .count {
+  color: var(--text2);
+  margin-left: 4px;
+}
+
+/* 审核卡片 */
+.review-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.review-header {
+  margin-bottom: 12px;
+}
+
+.review-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent);
+}
+
+.review-tag.school {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+}
+
+.review-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(0, 212, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.05);
+  margin-bottom: 12px;
+}
+
+.detail-item {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.review-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.review-actions .btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-icon {
+  font-size: 14px;
+}
+
+/* 列表表格 */
+.list-table {
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 212, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.table-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.05);
+  font-size: 13px;
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+/* 表格列宽 */
+.col-name {
+  width: 80px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.col-school {
+  flex: 1;
+  color: var(--text2);
+  padding: 0 8px;
+}
+
+.col-job {
+  width: 80px;
+  color: var(--text2);
+}
+
+.col-status {
+  width: 60px;
+  display: flex;
+  justify-content: center;
+}
+
+.col-action {
+  width: 50px;
+  display: flex;
+  justify-content: center;
+}
+
+.col-username {
+  width: 80px;
+  color: var(--text);
+}
+
+.col-nickname {
+  width: 70px;
+  color: var(--text2);
+}
+
+.col-role {
+  width: 80px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 状态标签 */
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* 角色小标签 */
+.role-tag-small {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* 删除链接 */
+.delete-link {
+  font-size: 13px;
+  color: var(--danger);
+  padding: 4px 8px;
+}
+
+.delete-link.disabled {
+  color: var(--text2);
+  opacity: 0.5;
+}
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.loading-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text2);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: var(--text2);
+}

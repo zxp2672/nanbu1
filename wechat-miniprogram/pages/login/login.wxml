@@ -1,0 +1,99 @@
+<view class="login-page">
+  <!-- 品牌区 -->
+  <view class="brand-section">
+    <text class="brand-icon">🎓</text>
+    <text class="brand-title">南部县校友会联盟</text>
+    <text class="brand-subtitle">欢迎回来</text>
+  </view>
+
+  <!-- 登录表单 -->
+  <view class="login-form">
+    <view class="form-group">
+      <text class="form-label">用户名</text>
+      <input 
+        class="input" 
+        type="text" 
+        placeholder="请输入用户名" 
+        value="{{username}}"
+        bindinput="onInputUsername"
+      />
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">密码</text>
+      <input 
+        class="input" 
+        type="password" 
+        placeholder="请输入密码" 
+        value="{{password}}"
+        bindinput="onInputPassword"
+      />
+    </view>
+
+    <button 
+      class="btn btn-primary btn-lg btn-block login-btn" 
+      bindtap="doLogin"
+      disabled="{{loading}}"
+    >
+      {{loading ? '登录中...' : '登录'}}
+    </button>
+  </view>
+
+  <!-- 演示账号区 -->
+  <view class="demo-section">
+    <view class="demo-header" bindtap="toggleDemo">
+      <text class="demo-title">演示账号</text>
+      <text class="demo-toggle">{{showDemo ? '收起 ▲' : '展开 ▼'}}</text>
+    </view>
+    
+    <view class="demo-content" wx:if="{{showDemo}}">
+      <view 
+        class="demo-item" 
+        bindtap="demoLogin" 
+        data-username="admin" 
+        data-password="123456"
+      >
+        <view class="demo-role">
+          <text class="role-tag role-admin">总管理员</text>
+        </view>
+        <view class="demo-info">
+          <text class="demo-account">admin</text>
+          <text class="demo-password">123456</text>
+        </view>
+        <text class="demo-arrow">›</text>
+      </view>
+
+      <view 
+        class="demo-item" 
+        bindtap="demoLogin" 
+        data-username="nb1_admin" 
+        data-password="123456"
+      >
+        <view class="demo-role">
+          <text class="role-tag role-school">学校管理员</text>
+        </view>
+        <view class="demo-info">
+          <text class="demo-account">nb1_admin</text>
+          <text class="demo-password">123456</text>
+        </view>
+        <text class="demo-arrow">›</text>
+      </view>
+
+      <view 
+        class="demo-item" 
+        bindtap="demoLogin" 
+        data-username="user" 
+        data-password="123456"
+      >
+        <view class="demo-role">
+          <text class="role-tag role-user">普通用户</text>
+        </view>
+        <view class="demo-info">
+          <text class="demo-account">user</text>
+          <text class="demo-password">123456</text>
+        </view>
+        <text class="demo-arrow">›</text>
+      </view>
+    </view>
+  </view>
+</view>

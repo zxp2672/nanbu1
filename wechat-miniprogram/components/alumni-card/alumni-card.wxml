@@ -1,0 +1,45 @@
+<view class="alumni-card" hover-class="alumni-card-hover" bindtap="onTap">
+  <!-- 左侧头像 -->
+  <view class="avatar-wrapper">
+    <image 
+      wx:if="{{alumni.avatar}}" 
+      class="avatar" 
+      src="{{alumni.avatar}}" 
+      mode="aspectFill"
+    ></image>
+    <view 
+      wx:else 
+      class="avatar-placeholder"
+      style="background-color: {{schoolColors[alumni.school] || '#1a6fc4'}}"
+    >
+      {{alumni.name ? alumni.name.charAt(0) : '?'}}
+    </view>
+  </view>
+  
+  <!-- 右侧信息 -->
+  <view class="info-wrapper">
+    <!-- 第一行：姓名 + 学校标签 -->
+    <view class="name-row">
+      <text class="name">{{alumni.name || '未知'}}</text>
+      <view 
+        class="school-tag"
+        style="background-color: {{schoolColors[alumni.school] || '#1a6fc4'}}20; color: {{schoolColors[alumni.school] || '#1a6fc4'}}; border-color: {{schoolColors[alumni.school] || '#1a6fc4'}}40"
+      >
+        {{alumni.school || '未知学校'}}
+      </view>
+    </view>
+    
+    <!-- 第二行：职业 · 公司 -->
+    <view class="job-row" wx:if="{{alumni.job || alumni.company}}">
+      <text class="job">{{alumni.job || ''}}</text>
+      <text class="separator" wx:if="{{alumni.job && alumni.company}}"> · </text>
+      <text class="company">{{alumni.company || ''}}</text>
+    </view>
+    
+    <!-- 第三行：城市 -->
+    <view class="city-row" wx:if="{{alumni.city}}">
+      <text class="city-icon">📍</text>
+      <text class="city">{{alumni.city}}</text>
+    </view>
+  </view>
+</view>

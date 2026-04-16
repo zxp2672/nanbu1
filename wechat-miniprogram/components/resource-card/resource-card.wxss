@@ -1,0 +1,107 @@
+/* resource-card 组件样式 */
+.resource-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: #0d1b35;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  margin-bottom: 12px;
+}
+
+/* 顶部：类型标签 + 标题 */
+.header-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.type-tag {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+  margin-right: 10px;
+}
+
+.resource-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0e8ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 中间：描述 */
+.description-row {
+  margin-bottom: 12px;
+}
+
+.description {
+  font-size: 13px;
+  color: #7b8ca8;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部：联系方式 | 发布者 | 时间 */
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 212, 255, 0.05);
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contact, .author {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.footer-label {
+  color: #7b8ca8;
+}
+
+.footer-value {
+  color: #e0e8ff;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time {
+  font-size: 12px;
+  color: #7b8ca8;
+}
+
+.delete-btn {
+  padding: 4px 12px;
+  background: rgba(255, 68, 102, 0.15);
+  color: #ff4466;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 68, 102, 0.3);
+}
+
+.delete-btn:active {
+  background: rgba(255, 68, 102, 0.25);
+}

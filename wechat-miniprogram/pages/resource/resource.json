@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "资源共享",
+  "usingComponents": {
+    "resource-card": "/components/resource-card/resource-card"
+  },
+  "enablePullDownRefresh": true
+}

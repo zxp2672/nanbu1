@@ -1,0 +1,60 @@
+<view class="post-card">
+  <!-- 顶部：头像 + 作者名 + 学校标签 + 相对时间 -->
+  <view class="header-row">
+    <view class="author-info">
+      <!-- 头像 -->
+      <image 
+        wx:if="{{post.avatar}}" 
+        class="avatar" 
+        src="{{post.avatar}}" 
+        mode="aspectFill"
+      ></image>
+      <view 
+        wx:else 
+        class="avatar-placeholder"
+        style="background-color: {{schoolColors[post.school] || '#1a6fc4'}}"
+      >
+        {{post.author ? post.author.charAt(0) : '?'}}
+      </view>
+      
+      <!-- 作者名 + 学校标签 -->
+      <view class="author-meta">
+        <text class="author-name">{{post.author || '匿名用户'}}</text>
+        <view 
+          wx:if="{{post.school}}"
+          class="school-tag"
+          style="background-color: {{schoolColors[post.school] || '#1a6fc4'}}20; color: {{schoolColors[post.school] || '#1a6fc4'}}; border-color: {{schoolColors[post.school] || '#1a6fc4'}}40"
+        >
+          {{post.school}}
+        </view>
+      </view>
+    </view>
+    
+    <!-- 相对时间 + 删除按钮 -->
+    <view class="header-right">
+      <text class="time">{{post.createdAt ? formatTimeAgo(post.createdAt) : ''}}</text>
+      <view 
+        class="delete-btn" 
+        wx:if="{{showDelete}}"
+        catchtap="onDelete"
+      >
+        删除
+      </view>
+    </view>
+  </view>
+  
+  <!-- 中间：动态内容文字 -->
+  <view class="content-row" wx:if="{{post.content}}">
+    <text class="content">{{post.content}}</text>
+  </view>
+  
+  <!-- 底部：图片 -->
+  <view class="image-row" wx:if="{{post.image}}">
+    <image 
+      class="post-image" 
+      src="{{post.image}}" 
+      mode="widthFix"
+      bindtap="onImageTap"
+    ></image>
+  </view>
+</view>

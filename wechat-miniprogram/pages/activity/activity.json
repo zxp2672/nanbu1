@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "校友活动",
+  "usingComponents": {
+    "activity-card": "/components/activity-card/activity-card"
+  },
+  "enablePullDownRefresh": true
+}

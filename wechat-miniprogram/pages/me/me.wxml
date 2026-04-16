@@ -1,0 +1,205 @@
+<view class="container">
+  <!-- 未登录状态 -->
+  <block wx:if="{{!isLoggedIn}}">
+    <view class="user-header">
+      <view class="avatar-large" style="background: linear-gradient(135deg, #1a6fc4, #7c3aed);">
+        <text class="avatar-text">?</text>
+      </view>
+      <text class="username">未登录</text>
+      <text class="user-bio">登录后查看更多内容</text>
+      <button class="btn btn-primary btn-lg" bindtap="goLogin">登录/注册</button>
+    </view>
+    
+    <!-- 功能预览 -->
+    <view class="preview-section">
+      <view class="preview-title">功能预览</view>
+      <view class="preview-list">
+        <view class="preview-item disabled">
+          <text class="preview-icon">📝</text>
+          <text class="preview-text">我的动态</text>
+        </view>
+        <view class="preview-item disabled">
+          <text class="preview-icon">👤</text>
+          <text class="preview-text">个人资料</text>
+        </view>
+        <view class="preview-item disabled">
+          <text class="preview-icon">⚙️</text>
+          <text class="preview-text">设置</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 已登录状态 -->
+  <block wx:if="{{isLoggedIn}}">
+    <!-- 用户信息头部卡片 -->
+    <view class="user-header">
+      <view class="avatar-large" bindtap="chooseAvatar" style="background-color: {{userInfo.school ? (roleColors[userInfo.role] || '#1a6fc4') : '#1a6fc4'}};">
+        <block wx:if="{{userInfo.avatar}}">
+          <image class="avatar-img" src="{{userInfo.avatar}}" mode="aspectFill"></image>
+        </block>
+        <block wx:else>
+          <text class="avatar-text">{{userInfo.name ? userInfo.name.charAt(0) : '?'}}</text>
+        </block>
+      </view>
+      <text class="avatar-tip">点击更换头像</text>
+      <text class="username">{{userInfo.name || userInfo.username || '用户'}}</text>
+      <view class="user-tags">
+        <view class="school-tag" wx:if="{{userInfo.school}}">{{userInfo.school}}</view>
+        <view class="role-tag" style="background-color: {{roleColors[userInfo.role] || '#7b8ca8'}}20; color: {{roleColors[userInfo.role] || '#7b8ca8'}}; border-color: {{roleColors[userInfo.role] || '#7b8ca8'}}40;">
+          {{roleNames[userInfo.role] || '用户'}}
+        </view>
+      </view>
+      <text class="user-bio" wx:if="{{userInfo.bio}}">{{userInfo.bio}}</text>
+    </view>
+
+    <!-- 管理入口 -->
+    <view class="admin-entry" wx:if="{{isAnyAdmin()}}" bindtap="goAdmin">
+      <text class="admin-text">进入管理后台</text>
+      <text class="admin-arrow">→</text>
+    </view>
+
+    <!-- Tab切换栏 -->
+    <view class="tab-bar">
+      <view class="tab-item {{activeTab === 'posts' ? 'active' : ''}}" data-tab="posts" bindtap="switchTab">
+        <text>我的动态</text>
+        <view class="tab-indicator" wx:if="{{activeTab === 'posts'}}"></view>
+      </view>
+      <view class="tab-item {{activeTab === 'profile' ? 'active' : ''}}" data-tab="profile" bindtap="switchTab">
+        <text>个人资料</text>
+        <view class="tab-indicator" wx:if="{{activeTab === 'profile'}}"></view>
+      </view>
+      <view class="tab-item {{activeTab === 'settings' ? 'active' : ''}}" data-tab="settings" bindtap="switchTab">
+        <text>设置</text>
+        <view class="tab-indicator" wx:if="{{activeTab === 'settings'}}"></view>
+      </view>
+    </view>
+
+    <!-- 我的动态Tab -->
+    <view class="tab-content" wx:if="{{activeTab === 'posts'}}">
+      <view class="post-actions">
+        <button class="btn btn-primary" bindtap="showPostDialog">+ 发布动态</button>
+      </view>
+      
+      <view class="loading" wx:if="{{loading}}">
+        <view class="loading-spinner"></view>
+      </view>
+      
+      <block wx:if="{{!loading}}">
+        <block wx:if="{{myPosts.length > 0}}">
+          <post-card wx:for="{{myPosts}}" wx:key="id" post="{{item}}" showDelete="{{true}}" bind:delete="onDeletePost"></post-card>
+        </block>
+        <view class="empty-state" wx:if="{{myPosts.length === 0}}">
+          <text class="empty-icon">📝</text>
+          <text class="empty-text">还没有发布动态</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- 个人资料Tab -->
+    <view class="tab-content" wx:if="{{activeTab === 'profile'}}">
+      <view class="profile-card">
+        <!-- 非编辑模式 -->
+        <block wx:if="{{!editMode}}">
+          <view class="info-list">
+            <view class="info-item">
+              <text class="info-label">昵称</text>
+              <text class="info-value">{{userInfo.name || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">职业</text>
+              <text class="info-value">{{userInfo.job || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">城市</text>
+              <text class="info-value">{{userInfo.city || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">学校</text>
+              <text class="info-value">{{userInfo.school || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">学段</text>
+              <text class="info-value">{{userInfo.level || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">年份</text>
+              <text class="info-value">{{userInfo.year || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">班级</text>
+              <text class="info-value">{{userInfo.className || '-'}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">简介</text>
+              <text class="info-value">{{userInfo.bio || '-'}}</text>
+            </view>
+          </view>
+          <button class="btn btn-secondary btn-block mt-4" bindtap="toggleEdit">编辑资料</button>
+        </block>
+
+        <!-- 编辑模式 -->
+        <block wx:if="{{editMode}}">
+          <view class="edit-form">
+            <view class="form-group">
+              <text class="form-label">昵称</text>
+              <input class="input" value="{{editForm.name}}" data-field="name" bindinput="onEditInput" placeholder="请输入昵称"/>
+            </view>
+            <view class="form-group">
+              <text class="form-label">职业</text>
+              <input class="input" value="{{editForm.job}}" data-field="job" bindinput="onEditInput" placeholder="请输入职业"/>
+            </view>
+            <view class="form-group">
+              <text class="form-label">城市</text>
+              <input class="input" value="{{editForm.city}}" data-field="city" bindinput="onEditInput" placeholder="请输入城市"/>
+            </view>
+            <view class="form-group">
+              <text class="form-label">学校</text>
+              <input class="input" value="{{editForm.school}}" data-field="school" bindinput="onEditInput" placeholder="请输入学校"/>
+            </view>
+            <view class="form-group">
+              <text class="form-label">简介</text>
+              <textarea class="textarea" value="{{editForm.bio}}" data-field="bio" bindinput="onEditInput" placeholder="请输入个人简介" maxlength="200"></textarea>
+            </view>
+          </view>
+          <view class="edit-actions">
+            <button class="btn btn-secondary" bindtap="toggleEdit">取消</button>
+            <button class="btn btn-primary" bindtap="saveProfile" disabled="{{loading}}">
+              {{loading ? '保存中...' : '保存'}}
+            </button>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 设置Tab -->
+    <view class="tab-content" wx:if="{{activeTab === 'settings'}}">
+      <view class="settings-card">
+        <view class="settings-item">
+          <text class="settings-label">关于应用</text>
+          <text class="settings-value">南部校友录 v1.0.0</text>
+        </view>
+      </view>
+      <button class="btn btn-danger btn-block mt-4" bindtap="doLogout">退出登录</button>
+    </view>
+  </block>
+
+  <!-- 发布动态弹窗 -->
+  <view class="dialog-overlay" wx:if="{{showPostForm}}" bindtap="hidePostDialog">
+    <view class="dialog" catchtap="preventBubble">
+      <view class="dialog-header">
+        <text class="dialog-title">发布动态</text>
+        <text class="dialog-close" bindtap="hidePostDialog">×</text>
+      </view>
+      <view class="dialog-body">
+        <textarea class="textarea" value="{{newPostContent}}" bindinput="onPostInput" placeholder="分享你的想法..." maxlength="500" auto-focus></textarea>
+      </view>
+      <view class="dialog-footer">
+        <button class="btn btn-secondary" bindtap="hidePostDialog">取消</button>
+        <button class="btn btn-primary" bindtap="submitPost" disabled="{{loading || !newPostContent.trim()}}">
+          {{loading ? '发布中...' : '发布'}}
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

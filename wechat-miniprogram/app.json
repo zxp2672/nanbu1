@@ -1,0 +1,60 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/alumni/alumni",
+    "pages/resource/resource",
+    "pages/activity/activity",
+    "pages/me/me",
+    "pages/admin/admin",
+    "pages/login/login",
+    "pages/alumni-detail/alumni-detail",
+    "pages/activity-detail/activity-detail"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#4338ca",
+    "navigationBarTitleText": "南部县校友会联盟",
+    "navigationBarTextStyle": "white",
+    "enablePullDownRefresh": false
+  },
+  "tabBar": {
+    "color": "#9ca3af",
+    "selectedColor": "#4338ca",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/alumni/alumni",
+        "text": "校友",
+        "iconPath": "assets/icons/alumni.png",
+        "selectedIconPath": "assets/icons/alumni-active.png"
+      },
+      {
+        "pagePath": "pages/resource/resource",
+        "text": "资源",
+        "iconPath": "assets/icons/resource.png",
+        "selectedIconPath": "assets/icons/resource-active.png"
+      },
+      {
+        "pagePath": "pages/activity/activity",
+        "text": "活动",
+        "iconPath": "assets/icons/activity.png",
+        "selectedIconPath": "assets/icons/activity-active.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "assets/icons/me.png",
+        "selectedIconPath": "assets/icons/me-active.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

@@ -1,0 +1,338 @@
+/* 个人中心页样式 */
+
+/* 用户头部卡片 */
+.user-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.1) 0%, transparent 100%);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+.avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  border: 3px solid rgba(0, 212, 255, 0.3);
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.avatar-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.avatar-tip {
+  font-size: 22rpx;
+  color: #7b8ca8;
+  margin-top: 8rpx;
+}
+
+.username {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.user-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.school-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+}
+
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.user-bio {
+  font-size: 13px;
+  color: var(--text2);
+  text-align: center;
+  max-width: 280px;
+}
+
+/* 管理入口 */
+.admin-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(255, 170, 0, 0.15), rgba(124, 58, 237, 0.15));
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+.admin-text {
+  font-size: 14px;
+  color: var(--warn);
+  font-weight: 500;
+}
+
+.admin-arrow {
+  font-size: 18px;
+  color: var(--warn);
+}
+
+/* Tab切换栏 */
+.tab-bar {
+  display: flex;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  font-size: 14px;
+  color: var(--text2);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: 4px;
+  width: 24px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Tab内容区 */
+.tab-content {
+  min-height: 300px;
+}
+
+/* 功能预览 */
+.preview-section {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.preview-title {
+  font-size: 14px;
+  color: var(--text2);
+  margin-bottom: 16px;
+  padding-left: 4px;
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+
+.preview-item.disabled {
+  opacity: 0.5;
+}
+
+.preview-icon {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.preview-text {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* 动态操作区 */
+.post-actions {
+  margin-bottom: 16px;
+}
+
+/* 个人资料 */
+.profile-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.05);
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 14px;
+  color: var(--text2);
+}
+
+.info-value {
+  font-size: 14px;
+  color: var(--text);
+  max-width: 60%;
+  text-align: right;
+}
+
+/* 编辑表单 */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.edit-actions .btn {
+  flex: 1;
+}
+
+/* 设置 */
+.settings-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+}
+
+.settings-label {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.settings-value {
+  font-size: 14px;
+  color: var(--text2);
+}
+
+/* 弹窗 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.dialog {
+  background: var(--card);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dialog-close {
+  font-size: 24px;
+  color: var(--text2);
+  padding: 0 4px;
+}
+
+.dialog-body {
+  padding: 16px;
+}
+
+.dialog-body .textarea {
+  min-height: 120px;
+}
+
+.dialog-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.dialog-footer .btn {
+  flex: 1;
+}
+
+/* 防止冒泡 */
+.prevent-bubble {
+  /* 占位 */
+}

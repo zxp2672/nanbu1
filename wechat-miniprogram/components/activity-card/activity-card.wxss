@@ -1,0 +1,133 @@
+/* activity-card 组件样式 */
+.activity-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background: #0d1b35;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.activity-card-hover {
+  background: #132547;
+  transform: scale(0.98);
+}
+
+/* 顶部：活动名称 + 状态标签 */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.activity-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0e8ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.status-tag {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 状态标签颜色 */
+.status-upcoming {
+  background: rgba(0, 212, 255, 0.15);
+  color: #00d4ff;
+}
+
+.status-ongoing {
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+}
+
+.status-ended {
+  background: rgba(123, 140, 168, 0.15);
+  color: #7b8ca8;
+}
+
+/* 中间：时间和地点信息 */
+.info-row {
+  margin-bottom: 8px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #7b8ca8;
+}
+
+.info-icon {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.info-text {
+  color: #7b8ca8;
+}
+
+/* 底部：报名信息 + 组织者 */
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 212, 255, 0.05);
+}
+
+.signup-info {
+  display: flex;
+  align-items: baseline;
+}
+
+.signup-count {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00d4ff;
+}
+
+.signup-divider {
+  font-size: 14px;
+  color: #7b8ca8;
+  margin: 0 2px;
+}
+
+.signup-capacity {
+  font-size: 14px;
+  color: #7b8ca8;
+}
+
+.signup-label {
+  font-size: 12px;
+  color: #7b8ca8;
+  margin-left: 4px;
+}
+
+.organizer {
+  display: flex;
+  align-items: center;
+}
+
+.organizer-label {
+  font-size: 12px;
+  color: #7b8ca8;
+}
+
+.organizer-name {
+  font-size: 12px;
+  color: #e0e8ff;
+}

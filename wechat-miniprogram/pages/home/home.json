@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "post-card": "/components/post-card/post-card"
+  },
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#050d1a"
+}

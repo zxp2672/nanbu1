@@ -1,0 +1,41 @@
+<view class="resource-card">
+  <!-- 顶部：类型标签 + 标题 -->
+  <view class="header-row">
+    <view 
+      class="type-tag"
+      style="background-color: {{typeColorBg}}; color: {{typeColor}}; border-color: {{typeColorBorder}}"
+    >
+      {{typeText}}
+    </view>
+    <text class="resource-title">{{resource.title || '未命名资源'}}</text>
+  </view>
+  
+  <!-- 中间：描述文字（最多3行截断） -->
+  <view class="description-row" wx:if="{{resource.description}}">
+    <text class="description">{{resource.description}}</text>
+  </view>
+  
+  <!-- 底部：联系方式 | 发布者 | 时间 -->
+  <view class="footer-row">
+    <view class="footer-left">
+      <view class="contact" wx:if="{{resource.contact}}">
+        <text class="footer-label">联系：</text>
+        <text class="footer-value">{{resource.contact}}</text>
+      </view>
+      <view class="author" wx:if="{{resource.author}}">
+        <text class="footer-label">发布者：</text>
+        <text class="footer-value">{{resource.author}}</text>
+      </view>
+    </view>
+    <view class="footer-right">
+      <text class="time">{{timeAgo}}</text>
+      <view 
+        class="delete-btn" 
+        wx:if="{{resource.authorId && currentUserId && resource.authorId === currentUserId}}"
+        catchtap="onDelete"
+      >
+        删除
+      </view>
+    </view>
+  </view>
+</view>
