@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const XLSX = require('xlsx');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,6 +70,35 @@ const uploadAvatar = multer({
   }
 });
 
+// 媒体文件上传配置（支持图片和视频）
+const mediaStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const dir = path.join(__dirname, 'uploads', 'media');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: function(req, file, cb) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    const id = 'media_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + ext;
+    cb(null, id);
+  }
+});
+
+const uploadMedia = multer({
+  storage: mediaStorage,
+  limits: { 
+    fileSize: 200 * 1024 * 1024 // 200MB
+  },
+  fileFilter: function(req, file, cb) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('只支持图片（JPG/PNG/GIF/WebP）和视频（MP4/MOV/AVI/WebM）文件'));
+    }
+  }
+});
+
 // 数据库初始化
 const dbPath = path.join(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
@@ -122,9 +152,17 @@ db.serialize(() => {
         contact TEXT,
         author TEXT,
         author_id TEXT,
+        media_urls TEXT DEFAULT '[]',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (author_id) REFERENCES users(id)
     )`);
+
+    // 添加media_urls字段（如果不存在）
+    db.run(`ALTER TABLE resources ADD COLUMN media_urls TEXT DEFAULT '[]'`, function(err) {
+        if (err && !err.message.includes('duplicate')) {
+            console.log('[DB] resources.media_urls already exists');
+        }
+    });
 
     // 活动表
     db.run(`CREATE TABLE IF NOT EXISTS activities (
@@ -137,9 +175,17 @@ db.serialize(() => {
         description TEXT,
         organizer_name TEXT,
         organizer_id TEXT,
+        media_urls TEXT DEFAULT '[]',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (organizer_id) REFERENCES users(id)
     )`);
+
+    // 添加media_urls字段（如果不存在）
+    db.run(`ALTER TABLE activities ADD COLUMN media_urls TEXT DEFAULT '[]'`, function(err) {
+        if (err && !err.message.includes('duplicate')) {
+            console.log('[DB] activities.media_urls already exists');
+        }
+    });
 
     // 活动报名表
     db.run(`CREATE TABLE IF NOT EXISTS activity_signups (
@@ -168,6 +214,17 @@ db.serialize(() => {
         FOREIGN KEY (author_id) REFERENCES users(id)
     )`);
 
+    // 点赞表
+    db.run(`CREATE TABLE IF NOT EXISTS post_likes (
+        id TEXT PRIMARY KEY,
+        post_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(post_id, user_id),
+        FOREIGN KEY (post_id) REFERENCES posts(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+
     // 学校表
     db.run(`CREATE TABLE IF NOT EXISTS schools (
         id TEXT PRIMARY KEY,
@@ -177,13 +234,29 @@ db.serialize(() => {
         description TEXT,
         founded_year INTEGER,
         color TEXT DEFAULT '#1a6fc4',
+        image TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // 添加image字段（如果不存在）
+    db.run(`ALTER TABLE schools ADD COLUMN image TEXT`, function(err) {
+        if (err && !err.message.includes('duplicate')) {
+            console.log('[DB] schools.image already exists');
+        }
+    });
+
     console.log('数据库表初始化完成');
     
-    // 插入初始数据
-    initData();
+    // 清理所有校友数据（包括虚拟和测试数据）
+    db.run(`DELETE FROM alumni`, function(err) {
+        if (err) {
+            console.log('[DB] 清理校友数据失败:', err.message);
+        } else {
+            console.log(`[DB] 清理了 ${this.changes} 条校友数据`);
+        }
+        // 插入初始数据
+        initData();
+    });
 });
 
 // 初始化数据
@@ -192,16 +265,16 @@ function initData() {
     
     // 学校数据
     const schools = [
-        ['s1', '南部中学', 'nb1', '🏫', '南部县重点高中，创建于1950年，历史悠久，英才辈出。', 1950, '#1a6fc4'],
-        ['s2', '南部二中', 'nb2', '🏫', '南部县第二中学，办学严谨，培育了大批优秀学子。', 1962, '#7c3aed'],
-        ['s3', '南部三中', 'nb3', '🏫', '南部县第三中学，注重素质教育，全面发展。', 1975, '#059669'],
-        ['s4', '大桥中学', 'dq', '🏫', '大桥镇中学，扎根乡土，服务地方教育事业。', 1968, '#d97706'],
-        ['s5', '东坝中学', 'db', '🏫', '东坝镇中学，勤奋务实，培养了众多优秀人才。', 1972, '#dc2626'],
-        ['s6', '建兴中学', 'jx', '🏫', '建兴镇中学，艰苦奋斗，为地方发展贡献力量。', 1980, '#0891b2']
+        ['s1', '南部中学', 'nb1', '🏫', '南部县重点高中，创建于1950年，历史悠久，英才辈出。', 1950, '#1a6fc4', 'https://images.unsplash.com/photo-1562774053-701939374585?w=400&h=300&fit=crop'],
+        ['s2', '南部二中', 'nb2', '🏫', '南部县第二中学，办学严谨，培育了大批优秀学子。', 1962, '#7c3aed', 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=400&h=300&fit=crop'],
+        ['s3', '南部三中', 'nb3', '🏫', '南部县第三中学，注重素质教育，全面发展。', 1975, '#059669', 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop'],
+        ['s4', '大桥中学', 'dq', '🏫', '大桥镇中学，扎根乡土，服务地方教育事业。', 1968, '#d97706', 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=400&h=300&fit=crop'],
+        ['s5', '东坝中学', 'db', '🏫', '东坝镇中学，勤奋务实，培养了众多优秀人才。', 1972, '#dc2626', 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?w=400&h=300&fit=crop'],
+        ['s6', '建兴中学', 'jx', '🏫', '建兴镇中学，艰苦奋斗，为地方发展贡献力量。', 1980, '#0891b2', 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=400&h=300&fit=crop']
     ];
 
     schools.forEach(s => {
-        db.run(`INSERT OR IGNORE INTO schools (id, name, short_name, icon, description, founded_year, color) VALUES (?, ?, ?, ?, ?, ?, ?)`, s);
+        db.run(`INSERT OR IGNORE INTO schools (id, name, short_name, icon, description, founded_year, color, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, s);
     });
 
     // 真实年轻头像URL（来自Unsplash）
@@ -380,13 +453,19 @@ function authenticateToken(req, res, next) {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
+        console.log('[Auth] 未提供Token');
         return res.status(401).json({ code: 401, message: '未提供Token' });
     }
 
+    console.log('[Auth] 收到Token，长度:', token.length);
+    
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
+            console.error('[Auth] Token验证失败:', err.message);
+            console.error('[Auth] Token前50字符:', token.substring(0, 50));
             return res.status(403).json({ code: 403, message: 'Token无效' });
         }
+        console.log('[Auth] Token验证成功，用户:', user.username, '角色:', user.role);
         req.user = user;
         next();
     });
@@ -409,15 +488,100 @@ app.post('/api/auth/login', (req, res) => {
     
     db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
         if (err) return res.status(500).json(error('服务器错误'));
-        if (!user) return res.status(401).json(error('用户名或密码错误', 401));
+        if (!user) return res.status(401).json(error('用户名不存在', 401));
         
         if (!bcrypt.compareSync(password, user.password)) {
-            return res.status(401).json(error('用户名或密码错误', 401));
+            return res.status(401).json(error('密码错误', 401));
         }
         
         const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
         const { password: _, ...userWithoutPassword } = user;
         res.json(success({ token, user: userWithoutPassword }));
+    });
+});
+
+// 用户注册
+app.post('/api/auth/register', (req, res) => {
+    const { username, password, name } = req.body;
+    
+    // 验证输入
+    if (!username || username.length < 4 || username.length > 20) {
+        return res.status(400).json(error('用户名需要4-20位字母或数字', 400));
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json(error('用户名只能包含字母、数字和下划线', 400));
+    }
+    
+    if (!password || password.length < 6 || password.length > 20) {
+        return res.status(400).json(error('密码需要6-20位', 400));
+    }
+    
+    if (!name || !name.trim()) {
+        return res.status(400).json(error('请填写真实姓名', 400));
+    }
+    
+    // 检查用户名是否已存在
+    db.get('SELECT id FROM users WHERE username = ?', [username], (err, existing) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (existing) return res.status(409).json(error('用户名已存在', 409));
+        
+        // 创建用户
+        const id = 'u' + Date.now();
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        
+        db.run(
+            'INSERT INTO users (id, username, password, name, role) VALUES (?, ?, ?, ?, ?)',
+            [id, username, hashedPassword, name.trim(), 'user'],
+            function(err) {
+                if (err) {
+                    console.error('注册失败:', err);
+                    return res.status(500).json(error('注册失败，请稍后重试', 500));
+                }
+                
+                // 生成 token
+                const token = jwt.sign({ id, username, role: 'user' }, JWT_SECRET, { expiresIn: '24h' });
+                
+                // 返回用户信息
+                const newUser = {
+                    id,
+                    username,
+                    name: name.trim(),
+                    role: 'user',
+                    created_at: new Date().toISOString()
+                };
+                
+                res.json(success({ token, user: newUser }));
+            }
+        );
+    });
+});
+
+// 重置密码（管理员可为任何用户重置，用户只能重置自己的）
+app.post('/api/auth/reset-password', authenticateToken, (req, res) => {
+    const { username, newPassword } = req.body;
+    
+    // 验证新密码
+    if (!newPassword || newPassword.length < 6 || newPassword.length > 20) {
+        return res.status(400).json(error('密码需要6-20位', 400));
+    }
+    
+    // 只有管理员可以重置他人密码
+    const targetUsername = req.user.role === 'superadmin' ? username : req.user.username;
+    
+    // 查找用户
+    db.get('SELECT * FROM users WHERE username = ?', [targetUsername], (err, user) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (!user) return res.status(404).json(error('用户不存在', 404));
+        
+        // 更新密码
+        const hashedPassword = bcrypt.hashSync(newPassword, 10);
+        db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, user.id], function(err) {
+            if (err) return res.status(500).json(error('密码重置失败', 500));
+            
+            console.log(`[Password Reset] User ${targetUsername} password reset by ${req.user.username}`);
+            res.json(success({ message: '密码重置成功' }));
+        });
     });
 });
 
@@ -435,6 +599,65 @@ app.get('/api/schools', (req, res) => {
     db.all('SELECT s.*, COUNT(a.id) as alumni_count FROM schools s LEFT JOIN alumni a ON s.name = a.school AND a.status = "approved" GROUP BY s.id', [], (err, rows) => {
         if (err) return res.status(500).json(error('服务器错误'));
         res.json(success(rows));
+    });
+});
+
+// 创建学校（管理员）
+app.post('/api/schools', authenticateToken, (req, res) => {
+    if (!['superadmin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足，仅总管理员可操作'));
+    }
+    
+    const { name, short_name, icon, description, founded_year, color, image } = req.body;
+    const id = 's' + Date.now();
+    
+    db.run(`INSERT INTO schools (id, name, short_name, icon, description, founded_year, color, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, short_name, icon || '🏫', description, founded_year, color, image],
+        function(err) {
+            if (err) return res.status(500).json(error('创建失败: ' + err.message));
+            db.get('SELECT * FROM schools WHERE id = ?', [id], (err, row) => {
+                res.json(success(row));
+            });
+        }
+    );
+});
+
+// 更新学校（管理员）
+app.put('/api/schools/:id', authenticateToken, (req, res) => {
+    if (!['superadmin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足，仅总管理员可操作'));
+    }
+    
+    const { name, short_name, icon, description, founded_year, color, image } = req.body;
+    
+    db.run(`UPDATE schools SET name = ?, short_name = ?, icon = ?, description = ?, founded_year = ?, color = ?, image = ? WHERE id = ?`,
+        [name, short_name, icon, description, founded_year, color, image, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json(error('更新失败: ' + err.message));
+            db.get('SELECT * FROM schools WHERE id = ?', [req.params.id], (err, row) => {
+                res.json(success(row));
+            });
+        }
+    );
+});
+
+// 删除学校（管理员）
+app.delete('/api/schools/:id', authenticateToken, (req, res) => {
+    if (!['superadmin'].includes(req.user.role)) {
+        return res.status(403).json(error('权限不足，仅总管理员可操作'));
+    }
+    
+    // 检查是否有校友
+    db.get('SELECT COUNT(*) as count FROM alumni WHERE school = (SELECT name FROM schools WHERE id = ?)', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        if (row.count > 0) {
+            return res.status(400).json(error('该学校下有校友，无法删除'));
+        }
+        
+        db.run('DELETE FROM schools WHERE id = ?', [req.params.id], function(err) {
+            if (err) return res.status(500).json(error('删除失败: ' + err.message));
+            res.json(success(null));
+        });
     });
 });
 
@@ -688,6 +911,213 @@ app.get('/api/alumni/stats/count', (req, res) => {
     });
 });
 
+// 导出校友资料为Excel（超级管理员）
+app.get('/api/admin/export-alumni', authenticateToken, (req, res) => {
+    console.log('[Export Alumni] 请求收到');
+    console.log('[Export Alumni] 用户:', req.user);
+    
+    // 仅超级管理员可访问
+    if (req.user.role !== 'superadmin') {
+        console.log('[Export Alumni] 权限不足，角色:', req.user.role);
+        return res.status(403).json(error('权限不足'));
+    }
+    
+    console.log('[Export Alumni] 开始查询数据库...');
+    
+    // 查询所有校友数据（包括待审核）
+    db.all(`
+        SELECT 
+            a.id,
+            a.name,
+            a.school,
+            a.level,
+            a.year,
+            a.classname,
+            a.phone,
+            a.job,
+            a.company,
+            a.city,
+            a.bio,
+            a.avatar,
+            a.status,
+            a.user_id,
+            u.username,
+            u.role as user_role,
+            u.created_at as register_time,
+            a.created_at as apply_time
+        FROM alumni a
+        LEFT JOIN users u ON a.user_id = u.id
+        ORDER BY a.created_at DESC
+    `, [], async (err, rows) => {
+        if (err) {
+            console.error('导出校友数据失败:', err);
+            return res.status(500).json(error('导出失败'));
+        }
+        
+        try {
+            // 准备Excel数据
+            const excelData = [];
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                let avatarBase64 = null;
+                
+                // 处理头像：转换为base64
+                if (row.avatar) {
+                    try {
+                        // 如果是data URL，直接使用
+                        if (row.avatar.startsWith('data:image')) {
+                            avatarBase64 = row.avatar;
+                        } 
+                        // 如果是http链接，下载图片
+                        else if (row.avatar.startsWith('http')) {
+                            const https = require('https');
+                            const http = require('http');
+                            
+                            avatarBase64 = await new Promise((resolve) => {
+                                const client = row.avatar.startsWith('https') ? https : http;
+                                client.get(row.avatar, (response) => {
+                                    if (response.statusCode === 200) {
+                                        const chunks = [];
+                                        response.on('data', (chunk) => chunks.push(chunk));
+                                        response.on('end', () => {
+                                            const buffer = Buffer.concat(chunks);
+                                            const base64 = buffer.toString('base64');
+                                            const contentType = response.headers['content-type'] || 'image/jpeg';
+                                            resolve(`data:${contentType};base64,${base64}`);
+                                        });
+                                    } else {
+                                        resolve(null);
+                                    }
+                                }).on('error', () => resolve(null));
+                            });
+                        }
+                        // 如果是相对路径，尝试从本地读取
+                        else if (row.avatar.startsWith('/uploads')) {
+                            const fullPath = path.join(__dirname, '..', row.avatar);
+                            if (fs.existsSync(fullPath)) {
+                                const buffer = fs.readFileSync(fullPath);
+                                const base64 = buffer.toString('base64');
+                                const ext = path.extname(fullPath).toLowerCase();
+                                const contentType = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+                                avatarBase64 = `data:${contentType};base64,${base64}`;
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`处理头像失败 (${row.name}):`, e.message);
+                        avatarBase64 = null;
+                    }
+                }
+                
+                excelData.push({
+                    '序号': i + 1,
+                    '姓名': row.name || '',
+                    '学校': row.school || '',
+                    '学段': row.level || '',
+                    '入学年份': row.year || '',
+                    '班级': row.classname || '',
+                    '手机号': row.phone || '',
+                    '职业': row.job || '',
+                    '单位': row.company || '',
+                    '城市': row.city || '',
+                    '个人简介': row.bio || '',
+                    '头像': avatarBase64, // base64图片数据
+                    '审核状态': row.status === 'approved' ? '已通过' : row.status === 'pending' ? '待审核' : '已拒绝',
+                    '用户名': row.username || '',
+                    '用户角色': row.user_role === 'superadmin' ? '超级管理员' : row.user_role === 'school_admin' ? '学校管理员' : row.user_role === 'class_admin' ? '班级管理员' : '普通用户',
+                    '注册时间': row.register_time || '',
+                    '申请时间': row.apply_time || ''
+                });
+            }
+            
+            // 创建工作簿
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            
+            // 设置列宽
+            worksheet['!cols'] = [
+                { wch: 6 },   // 序号
+                { wch: 15 },  // 姓名
+                { wch: 20 },  // 学校
+                { wch: 10 },  // 学段
+                { wch: 12 },  // 入学年份
+                { wch: 8 },   // 班级
+                { wch: 15 },  // 手机号
+                { wch: 20 },  // 职业
+                { wch: 25 },  // 单位
+                { wch: 15 },  // 城市
+                { wch: 40 },  // 个人简介
+                { wch: 15 },  // 头像（图片列）
+                { wch: 12 },  // 审核状态
+                { wch: 20 },  // 用户名
+                { wch: 15 },  // 用户角色
+                { wch: 20 },  // 注册时间
+                { wch: 20 }   // 申请时间
+            ];
+            
+            // 设置行高（为头像图片预留空间）
+            worksheet['!rows'] = [];
+            for (let i = 0; i < excelData.length; i++) {
+                worksheet['!rows'][i] = { hpt: 80 }; // 80磅高度
+            }
+            
+            // 插入图片到Excel
+            if (!workbook.Sheets['校友资料']['!images']) {
+                workbook.Sheets['校友资料']['!images'] = [];
+            }
+            
+            excelData.forEach((data, index) => {
+                if (data['头像']) {
+                    try {
+                        // 提取base64数据
+                        const base64Data = data['头像'].split(',')[1];
+                        const imageBuffer = Buffer.from(base64Data, 'base64');
+                        
+                        // 添加图片到工作表
+                        if (!workbook.Sheets['校友资料']['!images']) {
+                            workbook.Sheets['校友资料']['!images'] = [];
+                        }
+                        
+                        workbook.Sheets['校友资料']['!images'].push({
+                            name: `avatar_${index}`,
+                            data: imageBuffer,
+                            type: 'base64',
+                            position: {
+                                type: 'twoCellAnchor',
+                                from: { col: 11, row: index + 1 }, // 第12列（L列），第index+2行
+                                to: { col: 12, row: index + 2 }
+                            },
+                            imageType: 'png',
+                            opts: {
+                                autoFit: true,
+                                aspectRatio: true
+                            }
+                        });
+                    } catch (e) {
+                        console.error(`插入图片失败 (行${index + 1}):`, e.message);
+                    }
+                }
+            });
+            
+            XLSX.utils.book_append_sheet(workbook, worksheet, '校友资料');
+            
+            // 生成Excel文件
+            const fileName = `校友资料_${new Date().toISOString().slice(0,10)}.xlsx`;
+            const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+            
+            // 设置响应头
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+            
+            res.send(excelBuffer);
+        } catch (e) {
+            console.error('生成Excel失败:', e);
+            res.status(500).json(error('生成Excel失败: ' + e.message));
+        }
+    });
+});
+
 // 获取资源列表
 app.get('/api/resources', (req, res) => {
     const { type } = req.query;
@@ -718,10 +1148,10 @@ app.get('/api/resources/:id', (req, res) => {
 // 创建资源
 app.post('/api/resources', authenticateToken, (req, res) => {
     const id = 'r' + Date.now();
-    const { title, type, description, contact, author, author_id } = req.body;
+    const { title, type, description, contact, author, author_id, media_urls } = req.body;
     
-    db.run(`INSERT INTO resources (id, title, type, description, contact, author, author_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, title, type, description, contact, author, author_id || req.user.id],
+    db.run(`INSERT INTO resources (id, title, type, description, contact, author, author_id, media_urls) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, title, type, description, contact, author, author_id || req.user.id, media_urls || '[]'],
         function(err) {
             if (err) return res.status(500).json(error('创建失败'));
             db.get('SELECT * FROM resources WHERE id = ?', [id], (err, row) => {
@@ -824,15 +1254,25 @@ app.get('/api/activities/:id', (req, res) => {
 // 创建活动
 app.post('/api/activities', authenticateToken, (req, res) => {
     const id = 'act' + Date.now();
-    const { name, start_time, end_time, location, capacity, description, organizer_name, organizer_id } = req.body;
+    const { name, start_time, end_time, location, capacity, description, organizer_name, organizer_id, media_urls } = req.body;
     
-    db.run(`INSERT INTO activities (id, name, start_time, end_time, location, capacity, description, organizer_name, organizer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, name, start_time, end_time, location, capacity, description, organizer_name, organizer_id || req.user.id],
+    console.log('[Activity Create] Name:', name);
+    console.log('[Activity Create] Description length:', description ? description.length : 0);
+    console.log('[Activity Create] Description preview:', description ? description.substring(0, 100) : 'null');
+    
+    db.run(
+        'INSERT INTO activities (id, name, start_time, end_time, location, capacity, description, organizer_name, organizer_id, media_urls) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, name, start_time, end_time, location, capacity || 0, description || '', organizer_name, organizer_id || req.user.id, media_urls || '[]'],
         function(err) {
-            if (err) return res.status(500).json(error('创建失败'));
+            if (err) {
+                console.error('[Activity Create] Error:', err);
+                return res.status(500).json(error('创建失败: ' + err.message));
+            }
             db.get('SELECT * FROM activities WHERE id = ?', [id], (err, row) => {
+                if (err) return res.status(500).json(error('查询失败'));
                 row.signups = [];
                 row.signup_count = 0;
+                console.log('[Activity Create] Success:', id);
                 res.json(success(row));
             });
         }
@@ -843,11 +1283,20 @@ app.post('/api/activities', authenticateToken, (req, res) => {
 app.put('/api/activities/:id', authenticateToken, (req, res) => {
     const { name, start_time, end_time, location, capacity, description, organizer_name, organizer_id } = req.body;
     
-    db.run(`UPDATE activities SET name = ?, start_time = ?, end_time = ?, location = ?, capacity = ?, description = ?, organizer_name = ?, organizer_id = ? WHERE id = ?`,
-        [name, start_time, end_time, location, capacity, description, organizer_name, organizer_id, req.params.id],
+    console.log('[Activity Update] ID:', req.params.id);
+    console.log('[Activity Update] Description length:', description ? description.length : 0);
+    
+    db.run(
+        'UPDATE activities SET name = ?, start_time = ?, end_time = ?, location = ?, capacity = ?, description = ?, organizer_name = ?, organizer_id = ? WHERE id = ?',
+        [name, start_time, end_time, location, capacity || 0, description || '', organizer_name, organizer_id, req.params.id],
         function(err) {
-            if (err) return res.status(500).json(error('更新失败'));
+            if (err) {
+                console.error('[Activity Update] Error:', err);
+                return res.status(500).json(error('更新失败: ' + err.message));
+            }
             db.get('SELECT * FROM activities WHERE id = ?', [req.params.id], (err, row) => {
+                if (err) return res.status(500).json(error('查询失败'));
+                console.log('[Activity Update] Success:', req.params.id);
                 res.json(success(row));
             });
         }
@@ -969,6 +1418,82 @@ app.delete('/api/posts/:id', authenticateToken, (req, res) => {
     });
 });
 
+// 点赞动态
+app.post('/api/posts/:id/like', authenticateToken, (req, res) => {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const likeId = 'like_' + Date.now();
+    
+    // 检查是否已点赞
+    db.get('SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, userId], (err, existing) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        
+        if (existing) {
+            // 已点赞，取消点赞
+            db.run('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, userId], function(err) {
+                if (err) return res.status(500).json(error('操作失败'));
+                
+                // 返回点赞数
+                db.get('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [postId], (err, row) => {
+                    res.json(success({ liked: false, count: row.count }));
+                });
+            });
+        } else {
+            // 未点赞，添加点赞
+            db.run('INSERT INTO post_likes (id, post_id, user_id) VALUES (?, ?, ?)', [likeId, postId, userId], function(err) {
+                if (err) return res.status(500).json(error('操作失败'));
+                
+                // 返回点赞数
+                db.get('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [postId], (err, row) => {
+                    res.json(success({ liked: true, count: row.count }));
+                });
+            });
+        }
+    });
+});
+
+// 获取动态点赞状态和数量
+app.get('/api/posts/:id/likes', (req, res) => {
+    const postId = req.params.id;
+    const userId = req.query.user_id;
+    
+    // 获取点赞数
+    db.get('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?', [postId], (err, countRow) => {
+        if (err) return res.status(500).json(error('服务器错误'));
+        
+        // 获取点赞用户列表（最多显示10个）
+        db.all(`
+            SELECT u.id, u.name, u.avatar, u.school 
+            FROM post_likes pl 
+            JOIN users u ON pl.user_id = u.id 
+            WHERE pl.post_id = ? 
+            ORDER BY pl.created_at DESC 
+            LIMIT 10
+        `, [postId], (err, likers) => {
+            if (err) return res.status(500).json(error('服务器错误'));
+            
+            // 如果已登录，检查是否已点赞
+            let liked = false;
+            if (userId) {
+                db.get('SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?', [postId, userId], (err, likeRow) => {
+                    liked = !!likeRow;
+                    res.json(success({ 
+                        count: countRow.count, 
+                        liked,
+                        likers: likers || []
+                    }));
+                });
+            } else {
+                res.json(success({ 
+                    count: countRow.count, 
+                    liked: false,
+                    likers: likers || []
+                }));
+            }
+        });
+    });
+});
+
 // 获取用户列表
 app.get('/api/users', authenticateToken, (req, res) => {
     db.all('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users ORDER BY created_at DESC', [], (err, rows) => {
@@ -1008,17 +1533,102 @@ app.post('/api/upload/avatar', authenticateToken, uploadAvatar.single('file'), (
   );
 });
 
+// 上传媒体文件（图片/视频）
+app.post('/api/upload/media', authenticateToken, uploadMedia.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ code: 400, message: '未上传文件', data: null });
+  }
+  
+  const mediaUrl = '/uploads/media/' + req.file.filename;
+  const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+  
+  res.json({ 
+    code: 200, 
+    message: 'success', 
+    data: { 
+      url: mediaUrl, 
+      type: mediaType,
+      size: req.file.size,
+      name: req.file.originalname
+    } 
+  });
+});
+
+// 上传学校图片
+const schoolImageStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const dir = path.join(__dirname, 'uploads', 'schools');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function(req, file, cb) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, 'school_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + ext);
+  }
+});
+const uploadSchoolImage = multer({ 
+  storage: schoolImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: function(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'));
+    }
+  }
+});
+
+app.post('/api/upload/school-image', authenticateToken, uploadSchoolImage.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ code: 400, message: '未上传文件', data: null });
+  }
+  
+  const imageUrl = '/uploads/schools/' + req.file.filename;
+  
+  res.json({ 
+    code: 200, 
+    message: 'success', 
+    data: { 
+      url: imageUrl,
+      size: req.file.size,
+      name: req.file.originalname
+    } 
+  });
+});
+
 // 更新用户资料
 app.put('/api/users/profile', authenticateToken, (req, res) => {
     const { name, school, level, year, classname, job, city, bio, avatar } = req.body;
     
+    // 更新users表
     db.run(`UPDATE users SET name = ?, school = ?, level = ?, year = ?, classname = ?, job = ?, city = ?, bio = ?, avatar = ? WHERE id = ?`,
         [name, school, level, year, classname, job, city, bio, avatar, req.user.id],
         function(err) {
             if (err) return res.status(500).json(error('更新失败'));
-            db.get('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users WHERE id = ?', [req.user.id], (err, row) => {
-                res.json(success(row));
-            });
+            
+            // 同步更新alumni表的头像
+            if (avatar) {
+                db.run('UPDATE alumni SET avatar = ? WHERE user_id = ?', [avatar, req.user.id], function(alumniErr) {
+                    if (alumniErr) {
+                        console.error('同步alumni头像失败:', alumniErr);
+                        // 不阻断，继续返回成功
+                    } else {
+                        console.log(`同步alumni头像成功: user_id=${req.user.id}`);
+                    }
+                    
+                    // 返回更新后的用户信息
+                    db.get('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users WHERE id = ?', [req.user.id], (err, row) => {
+                        res.json(success(row));
+                    });
+                });
+            } else {
+                // 没有头像更新，直接返回
+                db.get('SELECT id, username, name, role, school, level, year, classname, job, city, bio, avatar, created_at FROM users WHERE id = ?', [req.user.id], (err, row) => {
+                    res.json(success(row));
+                });
+            }
         }
     );
 });

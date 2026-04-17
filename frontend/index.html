@@ -3,8 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>南部县校友会联盟</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260416045">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
@@ -27,18 +32,54 @@
     <div class="login-logo">
       <span class="logo-icon">🎓</span>
       <h1>南部县校友会联盟</h1>
-      <p>校友登录</p>
+      <p id="loginPageTitle">校友登录</p>
     </div>
-    <div id="loginError" class="login-error" style="display:none">用户名或密码错误</div>
-    <div class="form-group">
-      <label>用户名</label>
-      <input type="text" id="loginUser" placeholder="请输入用户名" value="admin">
+      
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <div id="loginError" class="login-error" style="display:none">用户名或密码错误</div>
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="loginUser" placeholder="请输入用户名" value="admin">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPass" placeholder="请输入密码" value="123456">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()">登 录</button>
+      <div class="login-switch" style="text-align:center;margin-top:16px">
+        <a href="javascript:void(0)" onclick="showForgotPassword()" style="color:var(--text-muted);font-size:13px;margin-right:16px">忘记密码？</a>
+        <span style="color:var(--text-muted);font-size:13px">还没有账号？</span>
+        <a href="javascript:void(0)" onclick="showRegisterForm()" style="color:var(--accent);font-size:13px;font-weight:600">立即注册</a>
+      </div>
     </div>
-    <div class="form-group">
-      <label>密码</label>
-      <input type="password" id="loginPass" placeholder="请输入密码" value="123456">
+      
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none">
+      <div id="registerError" class="login-error" style="display:none"></div>
+      <div class="form-group">
+        <label>用户名 *</label>
+        <input type="text" id="regUsername" placeholder="4-20位字母数字">
+      </div>
+      <div class="form-group">
+        <label>密码 *</label>
+        <input type="password" id="regPassword" placeholder="6-20位密码">
+      </div>
+      <div class="form-group">
+        <label>确认密码 *</label>
+        <input type="password" id="regPassword2" placeholder="再次输入密码">
+      </div>
+      <div class="form-group">
+        <label>姓名 *</label>
+        <input type="text" id="regName" placeholder="真实姓名">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doRegister()">注 册</button>
+      <div class="login-switch" style="text-align:center;margin-top:16px">
+        <span style="color:var(--text-muted);font-size:13px">已有账号？</span>
+        <a href="javascript:void(0)" onclick="showLoginForm()" style="color:var(--accent);font-size:13px;font-weight:600">立即登录</a>
+      </div>
     </div>
-    <button class="btn btn-primary btn-block" onclick="doLogin()">登 录</button>
+      
     <div class="login-hint">
       <span>总管理员: admin / 123456</span>
       <span>学校管理员: nb1_admin / 123456</span>
@@ -49,6 +90,9 @@
 
 <!-- 主应用 -->
 <div id="mainApp" class="main-app" style="display:none">
+  <!-- 浮动光斑背景 -->
+  <div class="floating-orbs"></div>
+  
   <!-- 粒子背景容器（已禁用） -->
   <div id="particles-js" style="display:none"></div>
   <div class="app-body" style="position:relative;z-index:1">
@@ -104,27 +148,62 @@
           <p>DATA INTELLIGENCE PLATFORM · 校友大数据平台</p>
         </div>
       </div>
-      <div class="home-stats-grid">
-        <div class="stat-card"><div class="stat-num" id="statSchools">6</div><div class="stat-label">成员学校</div></div>
-        <div class="stat-card"><div class="stat-num" id="statAlumni">0</div><div class="stat-label">注册校友</div></div>
-        <div class="stat-card"><div class="stat-num" id="statActivities">0</div><div class="stat-label">活动数量</div></div>
-        <div class="stat-card"><div class="stat-num" id="statResources">0</div><div class="stat-label">共享资源</div></div>
-      </div>
-      <div class="chart-wrap" style="margin-top:1px">
-        <div class="chart-box">
-          <div class="chart-title">📊 各学校校友分布</div>
-          <div id="schoolChart"></div>
+      
+      <!-- 数据统计卡片 - 大气版 -->
+      <div class="stats-showcase">
+        <div class="stat-showcase-card" onclick="navigateTo('alumni')">
+          <div class="stat-showcase-bg"></div>
+          <div class="stat-showcase-content">
+            <div class="stat-showcase-icon">🏫</div>
+            <div class="stat-showcase-num" id="statSchools">6</div>
+            <div class="stat-showcase-label">成员学校</div>
+            <div class="stat-showcase-trend">覆盖南部县主要中学</div>
+          </div>
+        </div>
+        
+        <div class="stat-showcase-card" onclick="navigateTo('alumni')">
+          <div class="stat-showcase-bg"></div>
+          <div class="stat-showcase-content">
+            <div class="stat-showcase-icon">👥</div>
+            <div class="stat-showcase-num" id="statAlumni">0</div>
+            <div class="stat-showcase-label">注册校友</div>
+            <div class="stat-showcase-trend">持续快速增长中</div>
+          </div>
+        </div>
+        
+        <div class="stat-showcase-card" onclick="navigateTo('activity')">
+          <div class="stat-showcase-bg"></div>
+          <div class="stat-showcase-content">
+            <div class="stat-showcase-icon">🎯</div>
+            <div class="stat-showcase-num" id="statActivities">0</div>
+            <div class="stat-showcase-label">活动数量</div>
+            <div class="stat-showcase-trend">精彩活动不间断</div>
+          </div>
+        </div>
+        
+        <div class="stat-showcase-card" onclick="navigateTo('resource')">
+          <div class="stat-showcase-bg"></div>
+          <div class="stat-showcase-content">
+            <div class="stat-showcase-icon">💎</div>
+            <div class="stat-showcase-num" id="statResources">0</div>
+            <div class="stat-showcase-label">共享资源</div>
+            <div class="stat-showcase-trend">优质资源共享平台</div>
+          </div>
         </div>
       </div>
+      
       <div class="section-header">
         <div class="section-title">成员学校</div>
       </div>
       <div class="schools-grid" id="schoolsList"></div>
+    <!-- 首页动态区域 -->
+    <div class="home-feed-section">
       <div class="section-header">
         <div class="section-title">最新动态</div>
         <span class="section-more" onclick="navigateTo('me')">发布动态 ›</span>
       </div>
       <div class="feed-list" id="homeFeed"></div>
+    </div>
     </div>
 
     <!-- 校友页 -->
@@ -291,10 +370,10 @@
                 <select id="profileLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
               </div>
               <div class="form-group"><label>入学年份</label>
-                <input type="number" id="profileYear" placeholder="如 2010" min="1980" max="2030">
+                <input type="number" id="profileYear" placeholder="如 2010" min="1950" max="2030" oninput="validateYearInput(this)">
               </div>
             </div>
-            <div class="form-group"><label>班级</label><input type="text" id="profileClass" placeholder="如 高三(2)班"></div>
+            <div class="form-group"><label>班级</label><input type="number" id="profileClass" placeholder="输入1-20整数" min="1" max="20" oninput="validateClassInput(this)"></div>
             <div class="form-group"><label>职业</label><input type="text" id="profileJob" placeholder="职业/公司"></div>
             <div class="form-group"><label>城市</label><input type="text" id="profileCity" placeholder="现居城市"></div>
             <div class="form-group"><label>个人简介</label><textarea id="profileBio" rows="3" placeholder="介绍一下自己..."></textarea></div>
@@ -327,6 +406,11 @@
           <div class="admin-card-label">校友管理</div>
           <div class="admin-card-count" id="adminAlumniCount">0</div>
         </div>
+        <div class="admin-card superadmin-only" onclick="showAdminSection('schools')">
+          <div class="admin-card-icon">🏫</div>
+          <div class="admin-card-label">学校管理</div>
+          <div class="admin-card-count" style="font-size:14px">›</div>
+        </div>
         <div class="admin-card superadmin-only" onclick="showAdminSection('users')">
           <div class="admin-card-icon">👥</div>
           <div class="admin-card-label">用户管理</div>
@@ -336,6 +420,11 @@
           <div class="admin-card-icon">🔄</div>
           <div class="admin-card-label">重置演示数据</div>
           <div class="admin-card-count" style="font-size:14px">›</div>
+        </div>
+        <div class="admin-card superadmin-only" onclick="exportAlumniExcel()">
+          <div class="admin-card-icon">📊</div>
+          <div class="admin-card-label">导出校友资料</div>
+          <div class="admin-card-count" style="font-size:14px">Excel</div>
         </div>
       </div>
       <div id="adminContent"></div>
@@ -365,6 +454,47 @@
 
 <!-- ===== 模态框 ===== -->
 
+<!-- 图片预览模态框 -->
+<div id="imagePreviewModal" class="modal" onclick="closeImagePreview()">
+  <div class="modal-content image-preview-content" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeImagePreview()" style="position:absolute;top:10px;right:10px;z-index:1000;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:20px;cursor:pointer">×</button>
+    <img id="previewImage" src="" alt="预览" style="max-width:100%;max-height:80vh;object-fit:contain;display:block;margin:0 auto">
+  </div>
+</div>
+
+<!-- 忘记密码 -->
+<div id="forgotPasswordModal" class="modal">
+  <div class="modal-content modal-center" style="max-width:400px">
+    <div class="modal-header">
+      <h3>重置密码</h3>
+      <button class="modal-close" onclick="closeModal('forgotPasswordModal')">×</button>
+    </div>
+    <div class="modal-form">
+      <div id="forgotPasswordError" class="login-error" style="display:none;margin-bottom:12px"></div>
+      <div id="forgotPasswordSuccess" class="login-error" style="display:none;margin-bottom:12px;background:#d1fae5;color:#065f46;border-color:#6ee7b7"></div>
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="forgotUsername" placeholder="请输入您的用户名">
+      </div>
+      <div class="form-group">
+        <label>新密码</label>
+        <input type="password" id="newPassword" placeholder="6-20位新密码">
+      </div>
+      <div class="form-group">
+        <label>确认新密码</label>
+        <input type="password" id="confirmNewPassword" placeholder="再次输入新密码">
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
+        💡 提示：如果您是管理员，请联系系统管理员重置密码
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('forgotPasswordModal')">取消</button>
+      <button class="btn btn-primary btn-sm" onclick="doResetPassword()">重置密码</button>
+    </div>
+  </div>
+</div>
+
 <!-- 确认框 -->
 <div id="confirmModal" class="modal">
   <div class="modal-content modal-center" style="width:300px">
@@ -387,17 +517,15 @@
     <div class="modal-form">
       <input type="hidden" id="editAlumniId">
       <div class="form-group">
-        <label>头像URL（可选）</label>
+        <label>头像（可选）</label>
         <div class="avatar-input-row">
-          <div class="avatar-preview-small" id="alumniAvatarPreview" style="width:40px;height:40px;border-radius:50%;background:#f1f3f5;border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>
-          <input type="text" id="aAvatarUrl" placeholder="https://... 或留空" oninput="previewAlumniAvatar(this.value)" style="flex:1">
-        </div>
-        <div style="margin-top:6px">
-          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-muted)">
-            <span>或上传本地图片：</span>
-            <input type="file" id="aAvatarFile" accept="image/*" style="display:none" onchange="handleAlumniAvatarFile(this)">
-            <span class="btn btn-sm btn-secondary" onclick="document.getElementById('aAvatarFile').click()">选择文件</span>
-          </label>
+          <div class="avatar-preview-small" id="alumniAvatarPreview" style="width:60px;height:60px;border-radius:50%;background:#f1f3f5;border:1px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer" onclick="document.getElementById('aAvatarFile').click()">👤</div>
+          <div style="flex:1">
+            <input type="text" id="aAvatarUrl" placeholder="输入图片URL或点击头像上传" oninput="previewAlumniAvatar(this.value)" style="width:100%">
+            <div style="margin-top:4px">
+              <input type="file" id="aAvatarFile" accept="image/*" style="display:none" onchange="handleAlumniAvatarFile(this)">
+            </div>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -411,18 +539,18 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>学段</label>
+        <div class="form-group"><label>学段 *</label>
           <select id="aLevel"><option value="">请选择</option><option>初中</option><option>高中</option></select>
         </div>
-        <div class="form-group"><label>入学年份</label><input type="number" id="aYear" placeholder="如 2010"></div>
+        <div class="form-group"><label>入学年份 *</label><input type="number" id="aYear" placeholder="如 2010" min="1950" max="2030" oninput="validateYearInput(this)"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>班级</label><input type="text" id="aClass" placeholder="如 高三(2)班"></div>
-        <div class="form-group"><label>联系电话</label><input type="text" id="aPhone" placeholder="手机号码"></div>
+        <div class="form-group"><label>班级 *</label><input type="number" id="aClass" placeholder="输入1-20整数" min="1" max="20" oninput="validateClassInput(this)"></div>
+        <div class="form-group"><label>联系电话 *</label><input type="text" id="aPhone" placeholder="手机号码"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>职业</label><input type="text" id="aJob" placeholder="职业"></div>
-        <div class="form-group"><label>公司</label><input type="text" id="aCompany" placeholder="公司名称"></div>
+        <div class="form-group"><label>单位</label><input type="text" id="aCompany" placeholder="工作单位"></div>
       </div>
       <div class="form-group"><label>城市</label><input type="text" id="aCity" placeholder="现居城市"></div>
       <div class="form-group"><label>个人简介</label><textarea id="aBio" rows="2" placeholder="简单介绍..."></textarea></div>
@@ -459,7 +587,22 @@
         </div>
         <div class="form-group"><label>联系方式</label><input type="text" id="rContact" placeholder="电话/微信"></div>
       </div>
-      <div class="form-group"><label>详细描述 *</label><textarea id="rDesc" rows="4" placeholder="详细描述资源内容..."></textarea></div>
+      <div class="form-group">
+        <label>详细描述 *</label>
+        <div id="resEditor" style="background:#fff;min-height:150px;border-radius:8px;"></div>
+        <input type="hidden" id="rDesc">
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="btn btn-sm btn-secondary" style="cursor:pointer">
+            <span>📷 上传图片</span>
+            <input type="file" id="resImageUpload" accept="image/*" style="display:none" onchange="handleResourceImageUpload(this)">
+          </label>
+          <label class="btn btn-sm btn-secondary" style="cursor:pointer">
+            <span>🎥 上传视频</span>
+            <input type="file" id="resVideoUpload" accept="video/*" style="display:none" onchange="handleResourceVideoUpload(this)">
+          </label>
+          <span style="font-size:12px;color:var(--text-muted)">图片最大5MB，视频最大200MB</span>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addResourceModal')">取消</button>
@@ -483,7 +626,22 @@
         <div class="form-group"><label>地点</label><input type="text" id="actLocation" placeholder="活动地点"></div>
         <div class="form-group"><label>人数上限</label><input type="number" id="actCapacity" placeholder="0=不限"></div>
       </div>
-      <div class="form-group"><label>活动描述</label><textarea id="actDesc" rows="3" placeholder="活动详情..."></textarea></div>
+      <div class="form-group">
+        <label>活动描述</label>
+        <div id="actEditor" style="background:#fff;min-height:120px;border-radius:8px;"></div>
+        <input type="hidden" id="actDesc">
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label class="btn btn-sm btn-secondary" style="cursor:pointer">
+            <span>📷 上传图片</span>
+            <input type="file" id="actImageUpload" accept="image/*" style="display:none" onchange="handleActivityImageUpload(this)">
+          </label>
+          <label class="btn btn-sm btn-secondary" style="cursor:pointer">
+            <span>🎥 上传视频</span>
+            <input type="file" id="actVideoUpload" accept="video/*" style="display:none" onchange="handleActivityVideoUpload(this)">
+          </label>
+          <span style="font-size:12px;color:var(--text-muted)">图片最大5MB，视频最大200MB</span>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addActivityModal')">取消</button>
@@ -532,6 +690,43 @@
   </div>
 </div>
 
+<!-- 添加/编辑学校（管理员） -->
+<div id="addSchoolModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header"><h3 id="schoolModalTitle">添加学校</h3><button class="modal-close" onclick="closeModal('addSchoolModal')">×</button></div>
+    <div class="modal-form">
+      <input type="hidden" id="editSchoolId">
+      <div class="form-group"><label>学校名称 *</label><input type="text" id="sName" placeholder="学校全称"></div>
+      <div class="form-row">
+        <div class="form-group"><label>简称</label><input type="text" id="sShort" placeholder="如 nb1"></div>
+        <div class="form-group"><label>图标</label><input type="text" id="sIcon" placeholder="🏫" value="🏫"></div>
+      </div>
+      <div class="form-group">
+        <label>学校图片</label>
+        <div id="schoolImagePreview" style="width:100%;height:150px;border:2px dashed var(--border);border-radius:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;background:#f9fafb;overflow:hidden;cursor:pointer" onclick="document.getElementById('schoolImageUpload').click()">
+          <div id="schoolImagePlaceholder" style="text-align:center;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:8px">📷</div>
+            <div style="font-size:13px">点击上传图片</div>
+            <div style="font-size:11px;margin-top:4px">或粘贴URL地址</div>
+          </div>
+          <img id="schoolImagePreviewImg" style="width:100%;height:100%;object-fit:cover;display:none" />
+        </div>
+        <input type="file" id="schoolImageUpload" accept="image/*" style="display:none" onchange="handleSchoolImageUpload(this)">
+        <input type="text" id="sImage" placeholder="https://... 或上传图片" oninput="previewSchoolImageUrl(this.value)">
+      </div>
+      <div class="form-group"><label>主题色</label><input type="color" id="sColor" value="#1a6fc4" style="width:100%;height:40px;border:1px solid var(--border);border-radius:8px;cursor:pointer"></div>
+      <div class="form-row">
+        <div class="form-group"><label>创建年份</label><input type="number" id="sYear" placeholder="如 1950" min="1900" max="2100"></div>
+      </div>
+      <div class="form-group"><label>学校简介</label><textarea id="sDesc" rows="3" placeholder="学校简介..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addSchoolModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveSchool()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
@@ -552,7 +747,6 @@
 </div>
 
 <!-- 微信浏览器兼容性检测 -->
-<script>
 // 检测微信浏览器
 const isWechat = /MicroMessenger/i.test(navigator.userAgent);
 if (isWechat) {
@@ -588,8 +782,11 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script src="js/api.js"></script>
-<script src="js/data-api-only.js"></script>
-<script src="js/app.js"></script>
+<script src="js/api.js?v=20260417002"></script>
+<script src="js/data-api-only.js?v=20260417002"></script>
+<script src="js/app.js?v=20260417002"></script>
+
+
+
 </body>
 </html>

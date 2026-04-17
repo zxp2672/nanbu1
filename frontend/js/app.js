@@ -1,11 +1,133 @@
+// 过滤浏览器扩展引起的错误
+window.addEventListener('error', function(event) {
+  if (event.message && event.message.includes('listener indicated an asynchronous response')) {
+    event.preventDefault();
+    return false;
+  }
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+  if (event.reason && event.reason.message && 
+      event.reason.message.includes('listener indicated an asynchronous response')) {
+    event.preventDefault();
+    return false;
+  }
+});
+
 // ===== 全局状态 =====
 let currentUser = null;
 let filterState = { school: '', level: '', year: '', classname: '' };
+
+// 图片预览功能
+function openImagePreview(imageUrl) {
+  if (!imageUrl) return;
+  const modal = $('imagePreviewModal');
+  const img = $('previewImage');
+  img.src = imageUrl;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImagePreview() {
+  const modal = $('imagePreviewModal');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// 导出校友资料为Excel
+async function exportAlumniExcel() {
+  console.log('=== 开始导出校友资料 ===');
+  console.log('currentUser:', currentUser);
+  
+  if (!currentUser) {
+    console.error('未登录');
+    showToast('请先登录', 'error');
+    return;
+  }
+  
+  if (currentUser.role !== 'superadmin') {
+    console.error('不是超级管理员，当前角色:', currentUser.role);
+    showToast('仅超级管理员可导出', 'error');
+    return;
+  }
+  
+  try {
+    console.log('权限验证通过，开始调用API...');
+    showToast('正在导出...', 'info');
+    
+    const token = localStorage.getItem('nb_token');  // 修改为正确的key
+    console.log('Token:', token ? '存在 (长度:' + token.length + ')' : '不存在');
+    
+    if (!token) {
+      showToast('请先登录', 'error');
+      return;
+    }
+    
+    const apiUrl = '/api/admin/export-alumni';
+    console.log('API URL:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API错误响应:', errorText);
+      let errorMessage = '导出失败';
+      try {
+        const error = JSON.parse(errorText);
+        errorMessage = error.message || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    console.log('API调用成功，开始下载...');
+    
+    // 获取文件名
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let fileName = '校友资料.xlsx';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename\*?="?([^";]+)"?/);
+      if (match) {
+        fileName = decodeURIComponent(match[1]);
+      }
+    }
+    console.log('文件名:', fileName);
+    
+    // 下载文件
+    const blob = await response.blob();
+    console.log('Blob size:', blob.size);
+    
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    console.log('导出完成');
+    showToast('导出成功', 'success');
+  } catch (e) {
+    console.error('导出失败:', e);
+    console.error('错误堆栈:', e.stack);
+    showToast('导出失败: ' + (e.message || '请检查网络'), 'error');
+  }
+}
 let resTab = 'all', actTab = 'all';
 let postImageData = '';
 let alumniAvatarData = '';
 let profileAvatarData = '';
-let schoolChartInstance = null;
 let isNavigating = false; // 防抖锁
 
 // 分页状态
@@ -79,11 +201,275 @@ function goLogin() {
 
 // ===== 工具函数 =====
 function $(id) { return document.getElementById(id); }
+
+// 去除HTML标签
+function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+// 从富文本中提取第一张图片
+function extractFirstImage(html) {
+  if (!html) return null;
+  const match = html.match(/<img[^>]+src="([^"]+)"/);
+  return match ? match[1] : null;
+}
+
+// 从富文本中提取第一个视频
+function extractFirstVideo(html) {
+  if (!html) return null;
+  const match = html.match(/<video[^>]+src="([^"]+)"/);
+  return match ? match[1] : null;
+}
 function showToast(msg, duration = 2000) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), duration);
 }
-function openModal(id) { $(id).classList.add('open'); }
+function openModal(id) { 
+  $(id).classList.add('open'); 
+  
+  // 初始化富文本编辑器
+  if (id === 'addResourceModal' && !window.resQuill) {
+    initResourceEditor();
+  }
+  if (id === 'addActivityModal' && !window.actQuill) {
+    initActivityEditor();
+  }
+}
+
+// 初始化资源编辑器
+function initResourceEditor() {
+  window.resQuill = new Quill('#resEditor', {
+    theme: 'snow',
+    placeholder: '详细描述资源内容，支持图文视頻混排...',
+    modules: {
+      toolbar: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['link', 'image', 'video'],
+        ['clean']
+      ]
+    }
+  });
+  
+  // 自定义图片上传
+  window.resQuill.getModule('toolbar').addHandler('image', () => {
+    $('resImageUpload').click();
+  });
+  
+  // 自定义视频上传
+  window.resQuill.getModule('toolbar').addHandler('video', () => {
+    $('resVideoUpload').click();
+  });
+  
+  // 监听内容变化，调试用
+  window.resQuill.on('text-change', function() {
+    console.log('[Resource Editor] Content changed');
+  });
+}
+
+// 初始化活动编辑器
+function initActivityEditor() {
+  window.actQuill = new Quill('#actEditor', {
+    theme: 'snow',
+    placeholder: '活动详情，支持图文视頻混排...',
+    modules: {
+      toolbar: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        ['link', 'image', 'video'],
+        ['clean']
+      ]
+    }
+  });
+  
+  // 自定义图片上传
+  window.actQuill.getModule('toolbar').addHandler('image', () => {
+    $('actImageUpload').click();
+  });
+  
+  // 自定义视频上传
+  window.actQuill.getModule('toolbar').addHandler('video', () => {
+    $('actVideoUpload').click();
+  });
+  
+  // 监听内容变化，调试用
+  window.actQuill.on('text-change', function() {
+    console.log('[Activity Editor] Content changed');
+  });
+}
+
+// 处理资源图片上传
+async function handleResourceImageUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片大小不能超过5MB');
+    return;
+  }
+  
+  try {
+    showToast('正在上传图片...');
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/upload/media', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('nb_token')
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    if (result.code === 200) {
+      // 插入图片到编辑器
+      const range = window.resQuill.getSelection(true);
+      window.resQuill.insertEmbed(range.index, 'image', result.data.url);
+      window.resQuill.setSelection(range.index + 1);
+      showToast('图片上传成功');
+    } else {
+      showToast(result.message || '图片上传失败');
+    }
+  } catch (err) {
+    console.error('图片上传失败:', err);
+    showToast('图片上传失败，请检查网络');
+  }
+  
+  input.value = '';
+}
+
+// 处理活动图片上传
+async function handleActivityImageUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片大小不能超过5MB');
+    return;
+  }
+  
+  try {
+    showToast('正在上传图片...');
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/upload/media', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('nb_token')
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    if (result.code === 200) {
+      // 插入图片到编辑器
+      const range = window.actQuill.getSelection(true);
+      window.actQuill.insertEmbed(range.index, 'image', result.data.url);
+      window.actQuill.setSelection(range.index + 1);
+      showToast('图片上传成功');
+    } else {
+      showToast(result.message || '图片上传失败');
+    }
+  } catch (err) {
+    console.error('图片上传失败:', err);
+    showToast('图片上传失败，请检查网络');
+  }
+  
+  input.value = '';
+}
+
+// 处理资源视频上传
+async function handleResourceVideoUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  if (file.size > 200 * 1024 * 1024) {
+    showToast('视频大小不能超过200MB');
+    return;
+  }
+  
+  try {
+    showToast('正在上传视频...');
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/upload/media', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('nb_token')
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    if (result.code === 200) {
+      // 插入视频到编辑器（使用 iframe 嵌入视频）
+      const range = window.resQuill.getSelection(true);
+      const videoEmbed = `<iframe class="ql-video" frameborder="0" allowfullscreen="true" src="${result.data.url}"></iframe>`;
+      window.resQuill.clipboard.dangerouslyPasteHTML(range.index, videoEmbed);
+      window.resQuill.setSelection(range.index + 1);
+      showToast('视频上传成功');
+    } else {
+      showToast(result.message || '视频上传失败');
+    }
+  } catch (err) {
+    console.error('视频上传失败:', err);
+    showToast('视频上传失败，请检查网络');
+  }
+  
+  input.value = '';
+}
+
+// 处理活动视频上传
+async function handleActivityVideoUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  if (file.size > 200 * 1024 * 1024) {
+    showToast('视频大小不能超过200MB');
+    return;
+  }
+  
+  try {
+    showToast('正在上传视频...');
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/upload/media', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + localStorage.getItem('nb_token')
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    if (result.code === 200) {
+      // 插入视频到编辑器
+      const range = window.actQuill.getSelection(true);
+      const videoEmbed = `<iframe class="ql-video" frameborder="0" allowfullscreen="true" src="${result.data.url}"></iframe>`;
+      window.actQuill.clipboard.dangerouslyPasteHTML(range.index, videoEmbed);
+      window.actQuill.setSelection(range.index + 1);
+      showToast('视频上传成功');
+    } else {
+      showToast(result.message || '视频上传失败');
+    }
+  } catch (err) {
+    console.error('视频上传失败:', err);
+    showToast('视频上传失败，请检查网络');
+  }
+  
+  input.value = '';
+}
 function closeModal(id) { $(id).classList.remove('open'); }
 function confirm(msg, cb) {
   $('confirmMsg').textContent = msg;
@@ -92,7 +478,7 @@ function confirm(msg, cb) {
   openModal('confirmModal');
 }
 function avatarHtml(avatar, name, cls = '') {
-  if (avatar) return `<img src="${avatar}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt=""><span style="display:none" class="${cls}-text">${(name||'?')[0]}</span>`;
+  if (avatar) return `<img src="${avatar}" onclick="openImagePreview('${avatar}')" style="cursor:pointer" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt=""><span style="display:none" class="${cls}-text">${(name||'?')[0]}</span>`;
   return `<span class="${cls}-text">${(name||'?')[0]}</span>`;
 }
 function fmtDate(s) {
@@ -129,17 +515,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   const minDisplayTime = 500; // 最小显示时间 500ms
 
   const token = localStorage.getItem('nb_token');
-  if (token) {
+  const savedUser = localStorage.getItem('nb_user');
+  
+  if (token && savedUser) {
     try {
       // 尝试获取当前用户信息
       const user = await UserSvc.getMe();
       if (user) {
         currentUser = user;
+        console.log('[Init] Session restored:', currentUser);
+      } else {
+        localStorage.removeItem('nb_token');
+        localStorage.removeItem('nb_session');
+        localStorage.removeItem('nb_user');
       }
     } catch (err) {
       // Token 无效，清除
       localStorage.removeItem('nb_token');
       localStorage.removeItem('nb_session');
+      localStorage.removeItem('nb_user');
     }
   }
 
@@ -156,17 +550,232 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 function doLogin() {
   const u = $('loginUser').value.trim(), p = $('loginPass').value;
+  
+  console.log('[Login] Attempting login with username:', u);
+  
+  // 基本验证
+  if (!u) {
+    $('loginError').textContent = '请输入用户名';
+    $('loginError').style.display = 'block';
+    return;
+  }
+  if (!p) {
+    $('loginError').textContent = '请输入密码';
+    $('loginError').style.display = 'block';
+    return;
+  }
+  
   // 异步登录
   UserSvc.login(u, p).then(user => {
-    if (!user) { $('loginError').style.display = 'block'; return; }
+    console.log('[Login] Login response user:', user);
+    if (!user) { 
+      $('loginError').textContent = '登录失败，未返回用户信息';
+      $('loginError').style.display = 'block'; 
+      return; 
+    }
     $('loginError').style.display = 'none';
     currentUser = user;
     localStorage.setItem('nb_session', user.id);
+    localStorage.setItem('nb_user', JSON.stringify(user));
+    console.log('[Login] Login successful, user:', user);
     $('loginPage').style.display = 'none';
     startApp();
   }).catch(err => {
-    console.error('登录失败:', err);
+    console.error('[Login] 登录失败:', err);
+    console.error('[Login] Error stack:', err.stack);
+    
+    // 根据错误码显示具体错误信息
+    const errMsg = err.message || '';
+    if (errMsg.includes('用户名不存在')) {
+      $('loginError').textContent = '用户名不存在，请先注册';
+    } else if (errMsg.includes('密码错误')) {
+      $('loginError').textContent = '密码错误，请重新输入';
+    } else if (errMsg.includes('401')) {
+      $('loginError').textContent = '用户名或密码错误';
+    } else if (errMsg.includes('Failed to fetch')) {
+      $('loginError').textContent = '无法连接到服务器，请检查网络';
+    } else {
+      $('loginError').textContent = '登录失败: ' + errMsg;
+    }
     $('loginError').style.display = 'block';
+  });
+}
+
+// 显示注册表单
+function showRegisterForm() {
+  $('loginForm').style.display = 'none';
+  $('registerForm').style.display = 'block';
+  $('loginPageTitle').textContent = '用户注册';
+  $('registerError').style.display = 'none';
+}
+
+// 显示登录表单
+function showLoginForm() {
+  $('loginForm').style.display = 'block';
+  $('registerForm').style.display = 'none';
+  $('loginPageTitle').textContent = '校友登录';
+  $('loginError').style.display = 'none';
+}
+
+// 显示忘记密码
+function showForgotPassword() {
+  openModal('forgotPasswordModal');
+  $('forgotUsername').value = currentUser ? currentUser.username : '';
+  $('newPassword').value = '';
+  $('confirmNewPassword').value = '';
+  $('forgotPasswordError').style.display = 'none';
+  $('forgotPasswordSuccess').style.display = 'none';
+}
+
+// 重置密码
+async function doResetPassword() {
+  const username = $('forgotUsername').value.trim();
+  const newPassword = $('newPassword').value;
+  const confirmPassword = $('confirmNewPassword').value;
+  
+  // 验证
+  if (!username) {
+    $('forgotPasswordError').textContent = '请输入用户名';
+    $('forgotPasswordError').style.display = 'block';
+    $('forgotPasswordSuccess').style.display = 'none';
+    return;
+  }
+  
+  if (!newPassword || newPassword.length < 6 || newPassword.length > 20) {
+    $('forgotPasswordError').textContent = '密码需要6-20位';
+    $('forgotPasswordError').style.display = 'block';
+    $('forgotPasswordSuccess').style.display = 'none';
+    return;
+  }
+  
+  if (newPassword !== confirmPassword) {
+    $('forgotPasswordError').textContent = '两次输入的密码不一致';
+    $('forgotPasswordError').style.display = 'block';
+    $('forgotPasswordSuccess').style.display = 'none';
+    return;
+  }
+  
+  try {
+    const token = localStorage.getItem('nb_token');
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ username, newPassword })
+    });
+    
+    const result = await res.json();
+    
+    if (result.code === 200) {
+      $('forgotPasswordError').style.display = 'none';
+      $('forgotPasswordSuccess').textContent = '密码重置成功！请使用新密码登录';
+      $('forgotPasswordSuccess').style.display = 'block';
+      
+      // 清空密码输入框
+      $('newPassword').value = '';
+      $('confirmNewPassword').value = '';
+      
+      // 2秒后关闭弹窗
+      setTimeout(() => {
+        closeModal('forgotPasswordModal');
+        $('forgotPasswordSuccess').style.display = 'none';
+      }, 2000);
+    } else {
+      $('forgotPasswordError').textContent = result.message || '密码重置失败';
+      $('forgotPasswordError').style.display = 'block';
+      $('forgotPasswordSuccess').style.display = 'none';
+    }
+  } catch (err) {
+    console.error('密码重置失败:', err);
+    $('forgotPasswordError').textContent = '密码重置失败，请稍后重试';
+    $('forgotPasswordError').style.display = 'block';
+    $('forgotPasswordSuccess').style.display = 'none';
+  }
+}
+
+// 注册
+function doRegister() {
+  const username = $('regUsername').value.trim();
+  const password = $('regPassword').value;
+  const password2 = $('regPassword2').value;
+  const name = $('regName').value.trim();
+  
+  // 验证
+  if (!username || username.length < 4 || username.length > 20) {
+    $('registerError').textContent = '用户名需要4-20位字母或数字';
+    $('registerError').style.display = 'block';
+    return;
+  }
+  
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    $('registerError').textContent = '用户名只能包含字母、数字和下划线';
+    $('registerError').style.display = 'block';
+    return;
+  }
+  
+  if (!password || password.length < 6 || password.length > 20) {
+    $('registerError').textContent = '密码需要6-20位';
+    $('registerError').style.display = 'block';
+    return;
+  }
+  
+  if (password !== password2) {
+    $('registerError').textContent = '两次输入的密码不一致';
+    $('registerError').style.display = 'block';
+    return;
+  }
+  
+  if (!name) {
+    $('registerError').textContent = '请填写真实姓名';
+    $('registerError').style.display = 'block';
+    return;
+  }
+  
+  // 调用注册 API
+  UserSvc.register(username, password, name).then(user => {
+    if (!user) {
+      $('registerError').textContent = '注册失败，用户名可能已存在';
+      $('registerError').style.display = 'block';
+      return;
+    }
+    
+    // 注册成功，自动登录
+    $('registerError').style.display = 'none';
+    currentUser = user;
+    localStorage.setItem('nb_session', user.id);
+    localStorage.setItem('nb_user', JSON.stringify(user));
+    console.log('[Register] Registration successful, user:', user);
+    
+    // 直接进入应用，并弹出完善资料对话框
+    $('loginPage').style.display = 'none';
+    startApp();
+    
+    // 延迟弹出完善资料对话框
+    setTimeout(() => {
+      showToast('注册成功！请完善您的校友资料', 'success');
+      setTimeout(() => {
+        openModal('addAlumniModal');
+      }, 500);
+    }, 800);
+  }).catch(err => {
+    console.error('注册失败:', err);
+    
+    // 根据错误码显示具体错误信息
+    const errMsg = err.message || '';
+    if (errMsg.includes('用户名已存在') || errMsg.includes('409')) {
+      $('registerError').textContent = '用户名已存在，请更换用户名';
+    } else if (errMsg.includes('用户名')) {
+      $('registerError').textContent = errMsg;
+    } else if (errMsg.includes('密码')) {
+      $('registerError').textContent = errMsg;
+    } else if (errMsg.includes('姓名')) {
+      $('registerError').textContent = errMsg;
+    } else {
+      $('registerError').textContent = '注册失败，请稍后重试';
+    }
+    $('registerError').style.display = 'block';
   });
 }
 
@@ -181,6 +790,15 @@ function doLogout() {
 async function startApp() {
   document.body.style.touchAction = 'manipulation';
   $('mainApp').style.display = 'flex';
+  
+  console.log('[App] startApp called, currentUser:', currentUser);
+  console.log('[App] DOM ready:', document.readyState);
+  
+  // 等待 DOM 完全加载
+  if (document.readyState !== 'complete') {
+    await new Promise(resolve => window.addEventListener('load', resolve));
+  }
+  
   applyPermissions();
   await renderHomePage();
   await renderAlumniFilter();
@@ -192,21 +810,64 @@ async function startApp() {
 
 function applyPermissions() {
   const isAdmin = Perm.isAnyAdmin(currentUser);
+  const isSuperAdmin = Perm.isSuperAdmin(currentUser);
   const isLoggedIn = !!currentUser;
   
+  console.log('[Permissions] ========== APPLY PERMISSIONS ==========');
+  console.log('[Permissions] currentUser:', currentUser);
+  console.log('[Permissions] currentUser.role:', currentUser ? currentUser.role : 'N/A');
+  console.log('[Permissions] isAdmin:', isAdmin, 'isSuperAdmin:', isSuperAdmin, 'isLoggedIn:', isLoggedIn);
+  
   // 管理员权限控制
-  document.querySelectorAll('.admin-only').forEach(el => {
-    el.style.display = isAdmin ? '' : 'none';
-  });
-  const isSuperAdmin = Perm.isSuperAdmin(currentUser);
-  document.querySelectorAll('.superadmin-only').forEach(el => {
-    el.style.display = isSuperAdmin ? '' : 'none';
+  const adminElements = document.querySelectorAll('.admin-only');
+  console.log('[Permissions] Found .admin-only elements:', adminElements.length);
+  adminElements.forEach((el, index) => {
+    if (isAdmin) {
+      // 根据元素类型决定 display 值
+      const tagName = el.tagName.toLowerCase();
+      if (tagName === 'button') {
+        // 按钮元素：使用 inline-block
+        el.classList.add('admin-inline');
+        el.classList.remove('admin-visible', 'admin-flex');
+        el.style.display = 'inline-block';
+      } else if (tagName === 'div' && el.classList.contains('settings-item')) {
+        el.classList.add('admin-flex');
+        el.classList.remove('admin-visible', 'admin-inline');
+        el.style.display = 'flex';
+      } else {
+        el.classList.add('admin-visible');
+        el.classList.remove('admin-inline', 'admin-flex');
+        el.style.display = 'block';
+      }
+      console.log(`[Permissions] .admin-only [${index}]:`, el.className.trim(), '-> SHOW');
+    } else {
+      el.classList.remove('admin-visible', 'admin-inline', 'admin-flex');
+      el.style.display = 'none';
+      console.log(`[Permissions] .admin-only [${index}]:`, el.className.trim(), '-> HIDE');
+    }
   });
   
-  // 登录用户可见的操作按钮（添加校友、发布资源等）
-  document.querySelectorAll('.login-required').forEach(el => {
-    el.style.display = isLoggedIn ? '' : 'none';
+  // 超级管理员权限控制
+  const superadminElements = document.querySelectorAll('.superadmin-only');
+  console.log('[Permissions] Found .superadmin-only elements:', superadminElements.length);
+  superadminElements.forEach((el, index) => {
+    if (isSuperAdmin) {
+      const tagName = el.tagName.toLowerCase();
+      if (tagName === 'button' || tagName === 'span') {
+        el.classList.add('admin-inline');
+        el.classList.remove('admin-visible', 'admin-flex');
+      } else {
+        el.classList.add('admin-visible');
+        el.classList.remove('admin-inline', 'admin-flex');
+      }
+      console.log(`[Permissions] .superadmin-only [${index}]:`, el.className.trim(), '-> SHOW');
+    } else {
+      el.classList.remove('admin-visible', 'admin-inline', 'admin-flex');
+      console.log(`[Permissions] .superadmin-only [${index}]:`, el.className.trim(), '-> HIDE');
+    }
   });
+  
+  console.log('[Permissions] ========== END PERMISSIONS ==========');
 }
 
 // ===== 导航 =====
@@ -267,6 +928,11 @@ async function navigateTo(page, animType) {
 
 // ===== 首页 =====
 async function renderHomePage() {
+  // 确保学校数据已加载
+  if (SCHOOLS.length === 0) {
+    await loadSchools();
+  }
+  
   // 首页骨架屏默认显示，不需要手动显示
   try {
     // 并行获取数据
@@ -283,7 +949,6 @@ async function renderHomePage() {
     animateNum($('statAlumni'), alumni.length || 0);
     animateNum($('statActivities'), activities.length || 0);
     animateNum($('statResources'), resources.length || 0);
-    renderSchoolChart(alumni);
     renderSchoolsList(alumni);
     renderHomeFeedWithData(posts);
   } catch (e) {
@@ -298,65 +963,17 @@ async function renderHomePage() {
   }
 }
 
-function renderSchoolChart(alumni) {
-  const counts = SCHOOLS.map(s => alumni.filter(a => a.school === s.name).length);
-  const el = $('schoolChart');
-  if (schoolChartInstance) { schoolChartInstance.dispose(); }
-  schoolChartInstance = echarts.init(el);
-
-  const colors = [
-    ['#4338ca','#818cf8'],['#7c3aed','#a78bfa'],['#059669','#34d399'],
-    ['#d97706','#fbbf24'],['#dc2626','#f87171'],['#0891b2','#22d3ee']
-  ];
-  const labels = SCHOOLS.map(s => s.name.replace('中学','中').replace('南部','南'));
-
-  schoolChartInstance.setOption({
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' }
-    },
-    grid: {
-      left: '3%', right: '4%', bottom: '3%', containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: labels,
-      axisLabel: { color: '#4338ca', fontSize: 10, fontWeight: 'bold' }
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: '#818cf8', fontSize: 9 }
-    },
-    series: [{
-      name: '校友人数',
-      type: 'bar',
-      data: counts.map((v, i) => ({
-        value: v,
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: colors[i][0] },
-            { offset: 1, color: colors[i][1] }
-          ])
-        },
-        label: {
-          show: true, position: 'top',
-          formatter: v > 0 ? v : '',
-          textStyle: { color: '#1e1b4b', fontSize: 11, fontWeight: 'bold' }
-        }
-      })),
-      barWidth: '40%'
-    }]
-  });
-}
-
 function renderSchoolsList(alumni) {
   $('schoolsList').innerHTML = SCHOOLS.map(s => {
     const cnt = alumni.filter(a => a.school === s.name).length;
     return `<div class="school-card" onclick="filterBySchool('${s.name}')">
-      <div class="school-card-icon">${s.icon}</div>
-      <div class="school-card-name">${s.name}</div>
-      <div class="school-card-count">${cnt} 位校友</div>
+      <div class="school-card-image" style="background-image: url('${s.image}'); background-size: cover; background-position: center;">
+        <div class="school-card-overlay"></div>
+      </div>
+      <div class="school-card-content">
+        <div class="school-card-name">${s.name}</div>
+        <div class="school-card-count">${cnt} 位校友</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -381,10 +998,15 @@ function renderHomeFeedWithData(posts) {
   const sliced = posts.slice(0, 5);
   $('homeFeed').innerHTML = sliced.length ? sliced.map(p => feedItemHtml(p)).join('') :
     '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>';
+  
+  // 加载点赞状态
+  if (currentUser) {
+    setTimeout(() => loadPostLikes(), 100);
+  }
 }
 
 function feedItemHtml(p) {
-  return `<div class="feed-item">
+  return `<div class="feed-item" data-post-id="${p.id}">
     <div class="feed-avatar">${avatarHtml(p.avatar, p.author, 'feed-avatar')}</div>
     <div class="feed-body">
       <div class="feed-meta">
@@ -393,7 +1015,18 @@ function feedItemHtml(p) {
         <span class="feed-time">${fmtDate(p.createdAt)}</span>
       </div>
       <div class="feed-content">${p.content}</div>
-      ${p.image ? `<img class="feed-img" src="${p.image}" alt="">` : ''}
+      ${p.image ? `<img class="feed-img" src="${p.image}" onclick="openImagePreview('${p.image}')" style="cursor:pointer" alt="">` : ''}
+      <!-- 点赞用户列表 -->
+      <div class="feed-likers" id="likers-${p.id}" style="display:none">
+        <span class="feed-likers-icon">❤️</span>
+        <span class="feed-likers-names"></span>
+      </div>
+      <div class="feed-actions">
+        <button class="feed-action-btn" onclick="togglePostLike('${p.id}', this)" data-post-id="${p.id}">
+          <span class="action-icon">♡</span>
+          <span class="action-count">0</span>
+        </button>
+      </div>
     </div>
   </div>`;
 }
@@ -513,7 +1146,7 @@ function alumniCardHtml(a) {
     <div class="alumni-tags">
       ${a.school?`<span class="alumni-tag school">${a.school}</span>`:''}
       ${a.year?`<span class="alumni-tag">${a.year}届</span>`:''}
-      ${a.classname?`<span class="alumni-tag">${a.classname}</span>`:''}
+      ${a.classname?`<span class="alumni-tag">${a.classname}班</span>`:''}
       ${a.city?`<span class="alumni-tag city">📍${a.city}</span>`:''}
     </div>
   </div>`;
@@ -525,9 +1158,74 @@ async function showAlumniDetail(id) {
   const a = await AlumniSvc.getById(id);
   if (!a) return;
   const canManage = Perm.canManageAlumni(currentUser, a);
-  const posts = (await PostSvc.getAll()).filter(p => p.authorId && a.userId && p.authorId === a.userId).slice(0, 5);
-  const resources = (await ResourceSvc.getAll()).filter(r => r.authorId && a.userId && r.authorId === a.userId);
-  const activities = (await ActivitySvc.getAll()).filter(act => (act.signups||[]).find(s => a.userId && s.userId === a.userId));
+  
+  // 使用user_id筛选（数据库字段名）
+  const userId = a.user_id || a.userId;
+  
+  console.log('[Alumni Detail] 校友:', a.name, 'user_id:', userId);
+  console.log('[Alumni Detail] 校友完整数据:', a);
+  
+  // 筛选该用户的动态、资源、活动
+  // 强制刷新缓存，确保获取最新数据
+  const allPosts = await PostSvc.getAll(true);
+  console.log('[Alumni Detail] 所有动态数量:', allPosts.length);
+  console.log('[Alumni Detail] 第一条动态:', allPosts[0]);
+  
+  // 兼容author_id和authorId两种字段名
+  // 同时支持user_id匹配和用户名匹配（解决数据不一致问题）
+  const posts = userId ? allPosts.filter(p => {
+    const aid = p.author_id || p.authorId;
+    // 通过user_id匹配 或 通过用户名匹配
+    return aid === userId || (a.name && p.author === a.name);
+  }).slice(0, 5) : [];
+  console.log('[Alumni Detail] 筛选后动态数量:', posts.length);
+  
+  // 强制刷新资源缓存，确保获取最新数据
+  const allResources = await ResourceSvc.getAll(true);
+  console.log('[Alumni Detail] 所有资源数量:', allResources.length);
+  if (allResources.length > 0) {
+    console.log('[Alumni Detail] 第一个资源:', allResources[0]);
+    console.log('[Alumni Detail] 资源字段:', Object.keys(allResources[0]));
+    console.log('[Alumni Detail] 资源description:', allResources[0].description);
+    console.log('[Alumni Detail] 资源desc:', allResources[0].desc);
+  }
+  
+  const resources = userId ? allResources.filter(r => {
+    const aid = r.author_id || r.authorId;
+    return aid === userId || (a.name && r.author === a.name);
+  }) : [];
+  console.log('[Alumni Detail] 筛选后资源数量:', resources.length);
+  
+  // 强制刷新活动缓存，确保获取最新数据
+  const allActivities = await ActivitySvc.getAll(true);
+  console.log('[Alumni Detail] 所有活动数量:', allActivities.length);
+  if (allActivities.length > 0) {
+    console.log('[Alumni Detail] 第一个活动:', allActivities[0]);
+    console.log('[Alumni Detail] 活动字段:', Object.keys(allActivities[0]));
+    if (allActivities[0].signups && allActivities[0].signups.length > 0) {
+      console.log('[Alumni Detail] 第一个活动的报名:', allActivities[0].signups[0]);
+      console.log('[Alumni Detail] 报名字段:', Object.keys(allActivities[0].signups[0]));
+    }
+  }
+  
+  const activities = userId ? allActivities.filter(act => {
+    const signups = act.signups || [];
+    const found = signups.find(s => {
+      const uid = s.userId || s.user_id;
+      // 通过user_id匹配 或 通过name字段匹配
+      return uid === userId || (a.name && s.name === a.name);
+    });
+    if (found) {
+      console.log('[Alumni Detail] 找到活动:', act.name, '报名人:', found.name);
+    }
+    return found;
+  }) : [];
+  console.log('[Alumni Detail] 筛选后活动数量:', activities.length);
+  console.log('[Alumni Detail] userId:', userId, '校友名称:', a.name);
+  
+  // 联系方式显示逻辑：管理员或已审核校友可见
+  const canSeeContact = canManage || currentUser.role === 'user';
+  const phoneDisplay = canSeeContact && a.phone ? a.phone : (canManage ? '未填写' : '🔒 仅校友可见');
 
   $('alumniDetailBody').innerHTML = `
     <div class="detail-hero">
@@ -539,14 +1237,14 @@ async function showAlumniDetail(id) {
           ${a.school?`<span class="alumni-tag school">${a.school}</span>`:''}
           ${a.level?`<span class="alumni-tag">${a.level}</span>`:''}
           ${a.year?`<span class="alumni-tag">${a.year}届</span>`:''}
-          ${a.classname?`<span class="alumni-tag">${a.classname}</span>`:''}
+          ${a.classname?`<span class="alumni-tag">${a.classname}班</span>`:''}
           ${a.status==='pending'?`<span class="alumni-tag" style="color:var(--warning)">待审核</span>`:''}
         </div>
       </div>
     </div>
     <div class="detail-info-grid">
       <div class="detail-info-item"><div class="detail-info-label">城市</div><div class="detail-info-value">📍 ${a.city||'未填写'}</div></div>
-      <div class="detail-info-item"><div class="detail-info-label">联系电话</div><div class="detail-info-value">${canManage&&a.phone?a.phone:'🔒 仅管理员可见'}</div></div>
+      <div class="detail-info-item"><div class="detail-info-label">联系电话</div><div class="detail-info-value">${phoneDisplay}</div></div>
     </div>
     ${a.bio?`<div class="detail-bio">${a.bio}</div>`:''}
     <div class="detail-tabs">
@@ -555,7 +1253,11 @@ async function showAlumniDetail(id) {
       <button class="detail-tab" onclick="switchDetailTab(this,'dtAct')">活动(${activities.length})</button>
     </div>
     <div id="dtPosts">${posts.length?posts.map(p=>feedItemHtml(p)).join(''):'<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无动态</p></div>'}</div>
-    <div id="dtRes" style="display:none">${resources.length?resources.map(r=>`<div class="resource-card" style="margin-bottom:8px"><div class="resource-header"><span class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</span><span class="resource-title">${r.title}</span></div><div class="resource-desc">${r.desc}</div></div>`).join(''):'<div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无资源</p></div>'}</div>
+    <div id="dtRes" style="display:none">${resources.length?resources.map(r=>{
+      console.log('[Alumni Detail] 渲染资源:', r.title, 'description:', r.description, 'desc:', r.desc);
+      const desc = r.description || r.desc || r.content || '';
+      return `<div class="resource-card" style="margin-bottom:8px"><div class="resource-header"><span class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</span><span class="resource-title">${r.title}</span></div><div class="resource-desc">${stripHtml(desc).substring(0, 100)}${desc.length > 100 ? '...' : ''}</div></div>`;
+    }).join(''):'<div class="empty-state"><div class="empty-state-icon">📦</div><p>暂无资源</p></div>'}</div>
     <div id="dtAct" style="display:none">${activities.length?activities.map(a=>actCardHtml(a)).join(''):'<div class="empty-state"><div class="empty-state-icon">🎉</div><p>暂无活动</p></div>'}</div>
   `;
   let footer = '';
@@ -615,27 +1317,80 @@ async function editAlumni(id) {
 }
 
 async function saveAlumni() {
-  const name = $('aName').value.trim(), school = $('aSchool').value;
-  if (!name || !school) { showToast('请填写姓名和学校'); return; }
+  const name = $('aName').value.trim();
+  const school = $('aSchool').value;
+  const level = $('aLevel').value;
+  const yearValue = $('aYear').value.trim();
+  const classValue = $('aClass').value.trim();
+  const phone = $('aPhone').value.trim();
+  
+  // 必填字段验证
+  if (!name) { showToast('请填写姓名'); return; }
+  if (!school) { showToast('请选择学校'); return; }
+  if (!level) { showToast('请选择学段'); return; }
+  
+  // 验证入学年份（必须4位数字）
+  if (!yearValue || !/^\d{4}$/.test(yearValue)) {
+    showToast('入学年份必须是4位数字，如 2010');
+    return;
+  }
+  const year = parseInt(yearValue);
+  if (year < 1950 || year > 2030) {
+    showToast('入学年份应在1950-2030之间');
+    return;
+  }
+  
+  // 验证班级（必须1-20的整数）
+  if (!classValue || !/^\d{1,2}$/.test(classValue)) {
+    showToast('班级必须是1-20的数字');
+    return;
+  }
+  const classname = parseInt(classValue);
+  if (classname < 1 || classname > 20) {
+    showToast('班级必须在1-20之间');
+    return;
+  }
+  
+  if (!phone) { showToast('请填写联系电话'); return; }
+  
+  // 手机号格式验证
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  if (!phoneRegex.test(phone)) {
+    showToast('请填写正确的手机号码');
+    return;
+  }
+  
   const avatar = alumniAvatarData || $('aAvatarUrl').value.trim();
-  const data = { name, school, level: $('aLevel').value, year: parseInt($('aYear').value)||'',
-    classname: $('aClass').value.trim(), phone: $('aPhone').value.trim(),
-    job: $('aJob').value.trim(), company: $('aCompany').value.trim(),
-    city: $('aCity').value.trim(), bio: $('aBio').value.trim(), avatar,
-    user_id: currentUser.id };
+  const data = { 
+    name, 
+    school, 
+    level, 
+    year, 
+    classname,
+    phone,
+    job: $('aJob').value.trim(), 
+    company: $('aCompany').value.trim(),
+    city: $('aCity').value.trim(), 
+    bio: $('aBio').value.trim(), 
+    avatar,
+    user_id: currentUser.id 
+  };
   const editId = $('editAlumniId').value;
   try {
     if (editId) {
-      await AlumniSvc.update(editId, data); showToast('已更新');
+      await AlumniSvc.update(editId, data); 
+      showToast('资料已更新', 'success');
     } else {
-      await AlumniSvc.add(data); showToast('已提交，等待审核');
+      await AlumniSvc.add(data); 
+      showToast('资料已提交，等待管理员审核', 'success');
     }
     alumniAvatarData = '';
     closeModal('addAlumniModal');
-    await renderAlumniList(); await renderAdminPage();
+    await renderAlumniList(); 
+    await renderAdminPage();
   } catch (e) {
     console.error('保存失败:', e);
-    showToast('保存失败: ' + (e.message || '请检查网络'));
+    showToast('保存失败: ' + (e.message || '请检查网络'), 'error');
   }
 }
 
@@ -644,11 +1399,60 @@ function previewAlumniAvatar(url) {
   if (url) { el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentNode.textContent='👤'">`; }
   else { el.textContent = '👤'; }
 }
+
+// 验证入学年份输入（只能4位数字）
+function validateYearInput(input) {
+  let value = input.value.replace(/\D/g, ''); // 移除非数字字符
+  if (value.length > 4) value = value.substring(0, 4); // 限制4位
+  input.value = value;
+}
+
+// 验证班级输入（只能1-20的整数）
+function validateClassInput(input) {
+  let value = input.value.replace(/\D/g, ''); // 移除非数字字符
+  if (value.length > 2) value = value.substring(0, 2); // 限制2位
+  
+  // 如果输入了数字，验证范围
+  if (value) {
+    const num = parseInt(value);
+    if (num < 1) value = '1';
+    if (num > 20) value = '20';
+  }
+  
+  input.value = value;
+}
 function handleAlumniAvatarFile(input) {
-  const file = input.files[0]; if (!file) return;
+  const file = input.files[0];
+  if (!file) return;
+  
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    showToast('请选择图片文件', 'error');
+    input.value = ''; // 清空input
+    return;
+  }
+  
+  // 验证文件大小（最大5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片大小不能超过5MB', 'error');
+    input.value = ''; // 清空input
+    return;
+  }
+  
   const reader = new FileReader();
-  reader.onload = e => { alumniAvatarData = e.target.result; previewAlumniAvatar(alumniAvatarData); };
+  reader.onload = e => {
+    alumniAvatarData = e.target.result;
+    previewAlumniAvatar(alumniAvatarData);
+    showToast('头像已选择', 'success');
+  };
+  reader.onerror = () => {
+    showToast('图片读取失败，请重试', 'error');
+    input.value = ''; // 清空input
+  };
   reader.readAsDataURL(file);
+  
+  // 清空input，允许重复选择同一文件
+  input.value = '';
 }
 
 // ===== 资源页 =====
@@ -711,30 +1515,45 @@ async function renderResourceList() {
 }
 function resourceCardHtml(r) {
   const canDel = currentUser && (r.author_id === currentUser.id || Perm.isSuperAdmin(currentUser));
-  return `<div class="resource-card">
+  const thumbnail = extractFirstImage(r.description || r.desc || '');
+  const hasMedia = thumbnail || extractFirstVideo(r.description || r.desc || '');
+  
+  return `<div class="resource-card" onclick="showResourceDetail('${r.id}')" style="cursor:pointer">
+    ${hasMedia ? `<div class="resource-thumbnail">
+      ${thumbnail ? `<img src="${thumbnail}" alt="${r.title}" />` : ''}
+      <div class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</div>
+    </div>` : ''}
     <div class="resource-header">
-      <span class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</span>
+      ${!hasMedia ? `<span class="resource-type-badge ${resTypeClass(r.type)}">${resTypeName(r.type)}</span>` : ''}
       <span class="resource-title">${r.title}</span>
     </div>
-    <div class="resource-desc">${r.desc}</div>
+    <div class="resource-desc">${stripHtml(r.description || r.desc || '').substring(0, 100)}${(r.description || r.desc || '').length > 100 ? '...' : ''}</div>
     <div class="resource-footer">
       <span>${r.author} · ${fmtDate(r.createdAt)}</span>
       <span class="resource-contact">${r.contact||''}</span>
-      ${canDel?`<button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}')">删除</button>`:''}
+      ${canDel?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteResource('${r.id}')">删除</button>`:''}
     </div>
   </div>`;
 }
 async function saveResource() {
-  const title = $('rTitle').value.trim(), desc = $('rDesc').value.trim();
-  if (!title || !desc) { showToast('请填写标题和描述'); return; }
+  const title = $('rTitle').value.trim(), type = $('rType').value, contact = $('rContact').value.trim();
+  
+  // 从富文本编辑器获取内容
+  const desc = window.resQuill ? window.resQuill.root.innerHTML.trim() : '';
+  
+  if (!title) { showToast('请填写标题'); return; }
+  if (!desc || desc === '<p><br></p>') { showToast('请填写详细描述'); return; }
+  
   const editId = $('editResId').value;
-  const data = { title, type: $('rType').value, description: desc, contact: $('rContact').value.trim(),
+  const data = { title, type, description: desc, contact,
     author: currentUser.name || currentUser.username, author_id: currentUser.id };
   try {
     if (editId) { await ResourceSvc.update(editId, data); showToast('已更新'); }
     else { await ResourceSvc.add(data); showToast('发布成功'); }
     closeModal('addResourceModal');
-    $('rTitle').value=''; $('rDesc').value=''; $('rContact').value=''; $('editResId').value='';
+    // 清空表单
+    $('rTitle').value=''; $('rContact').value=''; $('editResId').value='';
+    if (window.resQuill) window.resQuill.setContents([]);
     await renderResourceList();
   } catch (e) {
     console.error('保存失败:', e);
@@ -808,7 +1627,14 @@ function actCardHtml(a) {
   const statusLabel = {upcoming:'即将开始',ongoing:'进行中',ended:'已结束'}[status];
   const tagCls = 'tag-'+status, barCls = 'status-'+status;
   const cnt = (a.signups||[]).length;
+  const thumbnail = extractFirstImage(a.description || a.desc || '');
+  const hasMedia = thumbnail || extractFirstVideo(a.description || a.desc || '');
+  
   return `<div class="activity-card" onclick="showActivityDetail('${a.id}')">
+    ${hasMedia ? `<div class="activity-thumbnail">
+      ${thumbnail ? `<img src="${thumbnail}" alt="${a.name}" />` : ''}
+      <div class="activity-status-tag ${tagCls}">${statusLabel}</div>
+    </div>` : ''}
     <div class="activity-status-bar ${barCls}"></div>
     <div class="activity-body">
       <div class="activity-name">${a.name}</div>
@@ -818,7 +1644,7 @@ function actCardHtml(a) {
         <div class="activity-info-row"><span>👤</span><span>发起人：${a.organizer?.name||'管理员'}</span></div>
       </div>
       <div class="activity-footer">
-        <span class="activity-status-tag ${tagCls}">${statusLabel}</span>
+        ${!hasMedia ? `<span class="activity-status-tag ${tagCls}">${statusLabel}</span>` : ''}
         <span class="activity-signup-count">已报名 ${cnt}${a.capacity>0?' / '+a.capacity:''} 人</span>
       </div>
     </div>
@@ -844,8 +1670,9 @@ async function showActivityDetail(id) {
   const a = await ActivitySvc.getById(id);
   if (!a) return;
   const status = ActivitySvc.getStatus(a);
-  const isSignedUp = (a.signups||[]).find(s => s.userId === currentUser.id);
+  const isSignedUp = (a.signups||[]).find(s => s.user_id === currentUser.id || s.userId === currentUser.id);
   const isFull = a.capacity > 0 && (a.signups||[]).length >= a.capacity;
+  console.log('[Activity] showActivityDetail:', { id, isSignedUp, signups: a.signups, currentUserId: currentUser.id });
   $('activityDetailBody').innerHTML = `
     <div style="margin-bottom:12px">
       <div style="font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:12px">${a.name}</div>
@@ -854,7 +1681,7 @@ async function showActivityDetail(id) {
         <div class="activity-info-row"><span>📍</span><span>${a.location||'待定'}</span></div>
         <div class="activity-info-row"><span>👤</span><span>发起人：${a.organizer?.name||'管理员'}</span></div>
       </div>
-      ${a.desc?`<div class="detail-bio">${a.desc}</div>`:''}
+      ${a.description || a.desc ? `<div class="detail-bio" style="margin-top:16px;background:#f9fafb;">${a.description || a.desc}</div>` : ''}
       ${signupRollHtml(a.signups||[])}
     </div>
   `;
@@ -876,6 +1703,48 @@ async function showActivityDetail(id) {
   openModal('activityDetailModal');
 }
 
+async function showResourceDetail(id) {
+  // 游客需要登录才能查看详情
+  if (!Auth.requireAuth()) return;
+  
+  try {
+    const r = await ResourceSvc.getById(id);
+    if (!r) {
+      showToast('资源不存在');
+      return;
+    }
+    
+    const canDel = currentUser && (r.author_id === currentUser.id || Perm.isSuperAdmin(currentUser));
+    
+    $('activityDetailBody').innerHTML = `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span class="resource-type-badge ${resTypeClass(r.type)}" style="font-size:12px">${resTypeName(r.type)}</span>
+          <span style="font-size:18px;font-weight:700;color:var(--text-primary)">${r.title}</span>
+        </div>
+        <div class="activity-info">
+          <div class="activity-info-row"><span>👤</span><span>发布人：${r.author || '未知'}</span></div>
+          <div class="activity-info-row"><span>📅</span><span>${fmtDate(r.createdAt)}</span></div>
+          ${r.contact ? `<div class="activity-info-row"><span>📞</span><span>联系方式：${r.contact}</span></div>` : ''}
+        </div>
+        <div class="detail-bio" style="margin-top:16px;background:#f9fafb;">${r.description || r.desc || '暂无描述'}</div>
+      </div>
+    `;
+    
+    let footer = '';
+    if (canDel) {
+      footer += `<button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}');closeModal('activityDetailModal');">删除</button>`;
+    }
+    footer += `<button class="btn btn-secondary btn-sm" onclick="closeModal('activityDetailModal')">关闭</button>`;
+    $('activityDetailFooter').innerHTML = footer;
+    
+    openModal('activityDetailModal');
+  } catch (e) {
+    console.error('[Resource] Show detail error:', e);
+    showToast('加载失败');
+  }
+}
+
 async function doSignup(id) {
   const a = await ActivitySvc.getById(id);
   if (!a) return;
@@ -891,18 +1760,28 @@ async function cancelSignup(id) {
 async function saveActivity() {
   const name = $('actName').value.trim();
   if (!name) { showToast('请填写活动名称'); return; }
+  
+  // 从富文本编辑器获取内容
+  const desc = window.actQuill ? window.actQuill.root.innerHTML.trim() : '';
+  
+  // 调试：输出HTML内容
+  console.log('[Save Activity] Description HTML:', desc);
+  console.log('[Save Activity] Description length:', desc.length);
+  
   const editId = $('editActId').value;
   const data = { name, start_time: $('actStart').value, end_time: $('actEnd').value,
     location: $('actLocation').value.trim(), capacity: parseInt($('actCapacity').value)||0,
-    description: $('actDesc').value.trim(),
+    description: desc,
     organizer_name: currentUser.name || currentUser.username,
     organizer_id: currentUser.id };
   try {
     if (editId) { await ActivitySvc.update(editId, data); showToast('已更新'); }
     else { await ActivitySvc.add(data); showToast('活动已发布'); }
     closeModal('addActivityModal');
+    // 清空表单
     $('actName').value=''; $('actStart').value=''; $('actEnd').value='';
-    $('actLocation').value=''; $('actCapacity').value=''; $('actDesc').value=''; $('editActId').value='';
+    $('actLocation').value=''; $('actCapacity').value=''; $('editActId').value='';
+    if (window.actQuill) window.actQuill.setContents([]);
     await renderActivityList();
   } catch (e) {
     console.error('保存失败:', e);
@@ -981,7 +1860,7 @@ async function renderMyPosts() {
           <button class="btn btn-danger btn-sm" style="margin-left:auto" onclick="deletePost('${p.id}')">删除</button>
         </div>
         <div class="feed-content">${p.content}</div>
-        ${p.image?`<img class="feed-img" src="${p.image}" alt="">`:''}
+        ${p.image?`<img class="feed-img" src="${p.image}" onclick="openImagePreview('${p.image}')" style="cursor:pointer" alt="">`:''}
       </div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-state-icon">📭</div><p>还没有发布动态</p></div>';
 }
@@ -1011,6 +1890,99 @@ function handlePostImage(input) {
 function deletePost(id) {
   confirm('确定删除该动态？', async () => { await PostSvc.delete(id); await renderMyPosts(); await renderHomeFeed(); showToast('已删除'); });
 }
+
+// 点赞/取消点赞
+async function togglePostLike(postId, btn) {
+  if (!Auth.requireAuth()) return;
+  
+  const icon = btn.querySelector('.action-icon');
+  const count = btn.querySelector('.action-count');
+  
+  try {
+    const result = await PostSvc.toggleLike(postId);
+    
+    if (result.liked) {
+      // 已点赞
+      icon.textContent = '❤️';
+      icon.style.color = '#ef4444';
+      btn.classList.add('liked');
+    } else {
+      // 取消点赞
+      icon.textContent = '♡';
+      icon.style.color = '';
+      btn.classList.remove('liked');
+    }
+    
+    count.textContent = result.count;
+    
+    // 重新加载点赞列表
+    const likes = await PostSvc.getLikes(postId);
+    renderLikersList(postId, likes.likers || [], result.count);
+  } catch (e) {
+    console.error('点赞失败:', e);
+    showToast('操作失败');
+  }
+}
+
+// 加载动态点赞状态
+async function loadPostLikes() {
+  if (!currentUser) return;
+  
+  const buttons = document.querySelectorAll('.feed-action-btn');
+  for (const btn of buttons) {
+    const postId = btn.dataset.postId;
+    try {
+      const likes = await PostSvc.getLikes(postId);
+      const icon = btn.querySelector('.action-icon');
+      const count = btn.querySelector('.action-count');
+      
+      count.textContent = likes.count;
+      
+      if (likes.liked) {
+        icon.textContent = '❤️';
+        icon.style.color = '#ef4444';
+        btn.classList.add('liked');
+      }
+      
+      // 显示点赞用户列表
+      renderLikersList(postId, likes.likers || [], likes.count);
+    } catch (e) {
+      console.error('加载点赞状态失败:', e);
+    }
+  }
+}
+
+// 渲染点赞用户列表
+function renderLikersList(postId, likers, totalCount) {
+  console.log(`渲染点赞列表 - 动态ID: ${postId}, 点赞数: ${totalCount}, 用户数: ${likers.length}`);
+  console.log('点赞用户:', likers);
+  
+  const likersEl = document.getElementById(`likers-${postId}`);
+  if (!likersEl) {
+    console.warn(`找不到点赞容器: likers-${postId}`);
+    return;
+  }
+  
+  if (likers.length === 0 || totalCount === 0) {
+    console.log('无点赞，隐藏列表');
+    likersEl.style.display = 'none';
+    return;
+  }
+  
+  // 显示最多3个用户名
+  const displayNames = likers.slice(0, 3).map(u => u.name);
+  let namesText = displayNames.join('、');
+  
+  if (totalCount > 3) {
+    namesText += ` 等${totalCount}人`;
+  } else if (totalCount > 0) {
+    namesText += ' 觉得很赞';
+  }
+  
+  console.log(`显示文本: ${namesText}`);
+  likersEl.querySelector('.feed-likers-names').textContent = namesText;
+  likersEl.style.display = 'block';
+}
 function loadProfileForm() {
   const u = currentUser;
   $('profileName').value = u.name||'';
@@ -1028,17 +2000,60 @@ function loadProfileForm() {
 }
 async function saveProfile() {
   try {
-    const data = { name: $('profileName').value.trim(), school: $('profileSchool').value,
-      level: $('profileLevel').value, year: parseInt($('profileYear').value)||'',
-      classname: $('profileClass').value.trim(), job: $('profileJob').value.trim(),
-      city: $('profileCity').value.trim(), bio: $('profileBio').value.trim(),
-      avatar: profileAvatarData || $('profileAvatarUrl').value.trim() };
+    const name = $('profileName').value.trim();
+    const school = $('profileSchool').value;
+    const level = $('profileLevel').value;
+    const yearValue = $('profileYear').value.trim();
+    const classValue = $('profileClass').value.trim();
+    
+    // 验证班级（如果填写了）
+    let classname = '';
+    if (classValue) {
+      if (!/^\d{1,2}$/.test(classValue)) {
+        showToast('班级必须是1-20的数字');
+        return;
+      }
+      classname = parseInt(classValue);
+      if (classname < 1 || classname > 20) {
+        showToast('班级必须在1-20之间');
+        return;
+      }
+    }
+    
+    // 验证入学年份（如果填写了）
+    let year = '';
+    if (yearValue) {
+      if (!/^\d{4}$/.test(yearValue)) {
+        showToast('入学年份必须是4位数字');
+        return;
+      }
+      year = parseInt(yearValue);
+      if (year < 1950 || year > 2030) {
+        showToast('入学年份应在1950-2030之间');
+        return;
+      }
+    }
+    
+    const data = { 
+      name, 
+      school, 
+      level, 
+      year,
+      classname, 
+      job: $('profileJob').value.trim(), 
+      city: $('profileCity').value.trim(), 
+      bio: $('profileBio').value.trim(), 
+      avatar: profileAvatarData || $('profileAvatarUrl').value.trim() 
+    };
+    
     await UserSvc.updateProfile(data);
     currentUser = await UserSvc.getMe();
     profileAvatarData = '';
-    showToast('资料已保存'); await renderMePage();
+    showToast('资料已保存', 'success');
+    await renderMePage();
   } catch (e) {
-    showToast('保存失败: ' + (e.message || '请检查网络'));
+    console.error('保存资料失败:', e);
+    showToast('保存失败: ' + (e.message || '请检查网络'), 'error');
   }
 }
 function handleAvatarChange(input) {
@@ -1069,6 +2084,7 @@ async function renderAdminPage() {
 async function showAdminSection(section) {
   if (section === 'pending') await renderAdminPending();
   if (section === 'alumni') await renderAdminAlumni();
+  if (section === 'schools') await renderAdminSchools();
   if (section === 'users') await renderAdminUsers();
 }
 async function renderAdminPending() {
@@ -1080,7 +2096,7 @@ async function renderAdminPending() {
         <div class="alumni-avatar" style="width:40px;height:40px">${avatarHtml(a.avatar,a.name,'alumni-avatar')}</div>
         <div class="pending-info">
           <div class="pending-name">${a.name}</div>
-          <div class="pending-meta">${a.school||''} ${a.year||''} ${a.classname||''}</div>
+          <div class="pending-meta">${a.school||''} ${a.year||''}届 ${a.classname||''}班</div>
         </div>
         <div class="pending-actions">
           <button class="btn btn-success btn-sm" onclick="approveAlumni('${a.id}')">通过</button>
@@ -1126,6 +2142,224 @@ async function renderAdminUsers() {
       </tr>`).join('')}</tbody>
     </table>
   </div>`;
+}
+
+async function renderAdminSchools() {
+  if (!Perm.isSuperAdmin(currentUser)) return;
+  
+  // 从 API 加载学校数据
+  const res = await fetch('/api/schools');
+  const data = await res.json();
+  const list = data.data || [];
+  
+  $('adminContent').innerHTML = `<div class="admin-section">
+    <div class="admin-section-title">学校管理（${list.length}）<button class="btn btn-primary btn-sm" onclick="openAddSchool()">添加学校</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:12px">
+      ${list.map(s => `
+        <div class="school-manage-card" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all 0.3s">
+          <div style="height:120px;background-image:url('${s.image || ''}');background-size:cover;background-position:center;position:relative">
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(to bottom,rgba(0,0,0,0.1),rgba(0,0,0,0.5))"></div>
+            <div style="position:absolute;bottom:8px;left:12px;color:#fff;font-size:16px;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,0.3)">${s.name}</div>
+          </div>
+          <div style="padding:12px">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${s.description || '暂无简介'}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <span style="font-size:11px;background:${s.color};color:#fff;padding:2px 8px;border-radius:10px">${s.icon || '🏫'}</span>
+              <span style="font-size:12px;color:var(--text-muted)">${s.founded_year ? s.founded_year + '年建校' : ''}</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" style="flex:1" onclick="editSchool('${s.id}')">编辑</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteSchool('${s.id}','${s.name}')">删除</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function openAddSchool() {
+  $('schoolModalTitle').textContent = '添加学校';
+  $('editSchoolId').value = '';
+  $('sName').value = '';
+  $('sShort').value = '';
+  $('sIcon').value = '🏫';
+  $('sImage').value = '';
+  $('sColor').value = '#1a6fc4';
+  $('sYear').value = '';
+  $('sDesc').value = '';
+  // 重置图片预览
+  $('schoolImagePreviewImg').style.display = 'none';
+  $('schoolImagePlaceholder').style.display = 'block';
+  $('schoolImageUpload').value = '';
+  openModal('addSchoolModal');
+}
+
+// 处理学校图片上传
+async function handleSchoolImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    showToast('请选择图片文件');
+    return;
+  }
+  
+  // 验证文件大小（5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('图片大小不能超过5MB');
+    return;
+  }
+  
+  showToast('正在上传图片...');
+  
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const token = localStorage.getItem('nb_token');
+    const res = await fetch('/api/upload/school-image', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    const result = await res.json();
+    if (result.code === 200) {
+      const imageUrl = result.data.url;
+      $('sImage').value = imageUrl;
+      // 显示预览
+      $('schoolImagePreviewImg').src = imageUrl;
+      $('schoolImagePreviewImg').style.display = 'block';
+      $('schoolImagePlaceholder').style.display = 'none';
+      showToast('图片上传成功');
+    } else {
+      showToast(result.message || '上传失败');
+    }
+  } catch (e) {
+    console.error('[School] Image upload error:', e);
+    showToast('上传失败: ' + e.message);
+  }
+}
+
+// 预览学校图片URL
+function previewSchoolImageUrl(url) {
+  if (url && url.trim()) {
+    $('schoolImagePreviewImg').src = url.trim();
+    $('schoolImagePreviewImg').style.display = 'block';
+    $('schoolImagePlaceholder').style.display = 'none';
+  } else {
+    $('schoolImagePreviewImg').style.display = 'none';
+    $('schoolImagePlaceholder').style.display = 'block';
+  }
+}
+
+async function editSchool(id) {
+  const res = await fetch('/api/schools');
+  const data = await res.json();
+  const s = data.data.find(x => x.id === id);
+  if (!s) return;
+  
+  $('schoolModalTitle').textContent = '编辑学校';
+  $('editSchoolId').value = id;
+  $('sName').value = s.name || '';
+  $('sShort').value = s.short_name || '';
+  $('sIcon').value = s.icon || '🏫';
+  $('sImage').value = s.image || '';
+  $('sColor').value = s.color || '#1a6fc4';
+  $('sYear').value = s.founded_year || '';
+  $('sDesc').value = s.description || '';
+  
+  // 显示图片预览
+  if (s.image) {
+    $('schoolImagePreviewImg').src = s.image;
+    $('schoolImagePreviewImg').style.display = 'block';
+    $('schoolImagePlaceholder').style.display = 'none';
+  } else {
+    $('schoolImagePreviewImg').style.display = 'none';
+    $('schoolImagePlaceholder').style.display = 'block';
+  }
+  
+  openModal('addSchoolModal');
+}
+
+async function saveSchool() {
+  const name = $('sName').value.trim();
+  if (!name) { showToast('请填写学校名称'); return; }
+  
+  const editId = $('editSchoolId').value;
+  const data = {
+    name,
+    short_name: $('sShort').value.trim(),
+    icon: $('sIcon').value || '🏫',
+    image: $('sImage').value.trim(),
+    color: $('sColor').value,
+    founded_year: parseInt($('sYear').value) || null,
+    description: $('sDesc').value.trim()
+  };
+  
+  try {
+    const token = localStorage.getItem('nb_token');
+    const url = editId ? `/api/schools/${editId}` : '/api/schools';
+    const method = editId ? 'PUT' : 'POST';
+    
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    if (result.code === 200) {
+      showToast(editId ? '学校已更新' : '学校已添加');
+      closeModal('addSchoolModal');
+      await renderAdminSchools();
+      // 重新加载学校数据到全局
+      await loadSchools();
+      // 刷新首页
+      if (currentPage === 'home') {
+        await renderHomePage();
+      }
+    } else {
+      showToast(result.message || '操作失败');
+    }
+  } catch (e) {
+    showToast('网络错误: ' + e.message);
+  }
+}
+
+async function deleteSchool(id, name) {
+  showConfirm(`确定删除学校「${name}」吗？`, async () => {
+    try {
+      const token = localStorage.getItem('nb_token');
+      const res = await fetch(`/api/schools/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const result = await res.json();
+      if (result.code === 200) {
+        showToast('学校已删除');
+        await renderAdminSchools();
+        await loadSchools();
+        if (currentPage === 'home') {
+          await renderHomePage();
+        }
+      } else {
+        showToast(result.message || '删除失败');
+      }
+    } catch (e) {
+      showToast('网络错误: ' + e.message);
+    }
+  });
 }
 function openAddUser() {
   $('userModalTitle').textContent = '添加用户';

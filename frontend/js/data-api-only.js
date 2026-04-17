@@ -1,13 +1,32 @@
 // ===== 纯API版本 - 所有数据通过API存取（无localStorage缓存）=====
 
-const SCHOOLS = [
-  { id: 's1', name: '南部中学', short: 'nb1', icon: '🏫', desc: '南部县重点高中', founded: 1950, color: '#1a6fc4' },
-  { id: 's2', name: '南部二中', short: 'nb2', icon: '🏫', desc: '南部县第二中学', founded: 1962, color: '#7c3aed' },
-  { id: 's3', name: '南部三中', short: 'nb3', icon: '🏫', desc: '南部县第三中学', founded: 1975, color: '#059669' },
-  { id: 's4', name: '大桥中学', short: 'dq', icon: '🏫', desc: '大桥镇中学', founded: 1968, color: '#d97706' },
-  { id: 's5', name: '东坝中学', short: 'db', icon: '🏫', desc: '东坝镇中学', founded: 1972, color: '#dc2626' },
-  { id: 's6', name: '建兴中学', short: 'jx', icon: '🏫', desc: '建兴镇中学', founded: 1980, color: '#0891b2' },
-];
+// 学校数据（初始为空，从API加载）
+let SCHOOLS = [];
+
+// 从API加载学校数据
+async function loadSchools() {
+  try {
+    const res = await fetch('/api/schools');
+    const data = await res.json();
+    if (data.code === 200) {
+      SCHOOLS = data.data.map(s => ({
+        id: s.id,
+        name: s.name,
+        short: s.short_name,
+        icon: s.icon || '🏫',
+        desc: s.description,
+        founded: s.founded_year,
+        color: s.color || '#1a6fc4',
+        image: s.image
+      }));
+    }
+  } catch (e) {
+    console.error('加载学校数据失败:', e);
+  }
+}
+
+// 立即加载学校数据
+loadSchools();
 
 const Perm = {
   isSuperAdmin(u) { return u && u.role === 'superadmin'; },
@@ -99,6 +118,16 @@ const UserSvc = {
   
   async login(username, password) {
     const result = await apiCall('POST', '/auth/login', { username, password });
+    if (result.token) {
+      localStorage.setItem('nb_token', result.token);
+      localStorage.setItem('nb_session', result.user.id);
+      this._currentUser = result.user;
+    }
+    return result.user;
+  },
+  
+  async register(username, password, name) {
+    const result = await apiCall('POST', '/auth/register', { username, password, name });
     if (result.token) {
       localStorage.setItem('nb_token', result.token);
       localStorage.setItem('nb_session', result.user.id);
@@ -206,11 +235,13 @@ const AlumniSvc = {
   async approve(id) {
     await apiCall('POST', `/alumni/${id}/approve`, {});
     clearCache('alumni');
+    clearCache('pendingAlumni');
   },
   
   async reject(id) {
     await apiCall('POST', `/alumni/${id}/reject`, {});
     clearCache('alumni');
+    clearCache('pendingAlumni');
   },
   
   async delete(id) {
@@ -258,6 +289,15 @@ const ResourceSvc = {
       _cache.lastFetch.resources = Date.now();
     }
     return _cache.resources || [];
+  },
+  
+  async getById(id) {
+    try {
+      return await apiCall('GET', `/resources/${id}`);
+    } catch (e) {
+      console.error('[ResourceSvc] getById error:', e);
+      return null;
+    }
   },
   
   async add(data) {
@@ -376,6 +416,23 @@ const PostSvc = {
   async delete(id) {
     await apiCall('DELETE', `/posts/${id}`);
     clearCache('posts');
+  },
+  
+  async toggleLike(id) {
+    const result = await apiCall('POST', `/posts/${id}/like`);
+    return result;
+  },
+  
+  async getLikes(id) {
+    try {
+      const userId = currentUser ? currentUser.id : '';
+      const result = await apiCall('GET', `/posts/${id}/likes?user_id=${userId}`);
+      console.log('获取点赞数据:', result);
+      return result;
+    } catch (e) {
+      console.error('获取点赞失败:', e);
+      return { count: 0, liked: false, likers: [] };
+    }
   }
 };
 
