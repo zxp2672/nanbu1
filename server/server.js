@@ -247,15 +247,21 @@ db.serialize(() => {
 
     console.log('数据库表初始化完成');
     
-    // 清理所有校友数据（包括虚拟和测试数据）
-    db.run(`DELETE FROM alumni`, function(err) {
+    // 检查是否已有校友数据
+    db.get(`SELECT COUNT(*) as count FROM alumni`, (err, row) => {
         if (err) {
-            console.log('[DB] 清理校友数据失败:', err.message);
-        } else {
-            console.log(`[DB] 清理了 ${this.changes} 条校友数据`);
+            console.log('[DB] 检查校友数据失败:', err.message);
+            initData();
+            return;
         }
-        // 插入初始数据
-        initData();
+        
+        if (row.count === 0) {
+            // 只有在没有数据时才初始化
+            console.log('[DB] 数据库为空，初始化基础数据');
+            initData();
+        } else {
+            console.log(`[DB] 数据库已有 ${row.count} 条校友数据，跳过初始化`);
+        }
     });
 });
 
